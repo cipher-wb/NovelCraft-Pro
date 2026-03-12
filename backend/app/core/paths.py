@@ -100,6 +100,12 @@ class AppPaths:
     def scene_context_bundle_path(self, slug: str, scene_id: str, draft_no: int) -> Path:
         return self.scene_drafts_dir(slug, scene_id) / f"context-bundle-{draft_no:03d}.json"
 
+    def scene_checks_dir(self, slug: str, scene_id: str) -> Path:
+        return self.scene_drafts_dir(slug, scene_id) / "checks"
+
+    def scene_draft_check_report_path(self, slug: str, scene_id: str, draft_id: str) -> Path:
+        return self.scene_checks_dir(slug, scene_id) / f"{draft_id}.json"
+
     def memory_dir(self, slug: str) -> Path:
         return self.project_root(slug) / "memory"
 

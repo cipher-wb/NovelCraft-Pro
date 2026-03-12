@@ -266,6 +266,11 @@ class SceneDraft(DomainModel):
     context_bundle_id: str | None = None
     context_bundle_path: str | None = None
     draft_path: str | None = None
+    latest_check_report_path: str | None = None
+    latest_check_run_id: str | None = None
+    last_check_status: str | None = None
+    last_check_blocker_count: int = 0
+    last_check_warning_count: int = 0
     model_name: str = ""
     tokens_in: int = 0
     tokens_out: int = 0
@@ -361,3 +366,4 @@ class DraftVersion(DomainModel):
     checksum: str = ""
     snapshot_path: str
     is_active: bool = True
+

@@ -8,6 +8,7 @@ from backend.app.repositories.sqlite_repository import SQLiteRepository
 from backend.app.repositories.vector_repository import VectorRepository
 from backend.app.services.bible_service import BibleService
 from backend.app.services.bootstrap_service import BootstrapService
+from backend.app.services.checks_service import ChecksService
 from backend.app.services.consultant_service import ConsultantService
 from backend.app.services.context_bundle_service import ContextBundleService
 from backend.app.services.memory_service import MemoryService
@@ -21,20 +22,25 @@ def get_app_settings() -> Settings:
     return get_settings()
 
 
+
 def get_app_paths(settings: Settings) -> AppPaths:
     return AppPaths(settings)
+
 
 
 def get_file_repository() -> FileRepository:
     return FileRepository()
 
 
+
 def get_sqlite_repository(paths: AppPaths) -> SQLiteRepository:
     return SQLiteRepository(paths.app_db_path)
 
 
+
 def get_vector_repository(paths: AppPaths) -> VectorRepository:
     return VectorRepository(paths.data_root / "vectorstore_stub")
+
 
 
 def get_llm_gateway(settings: Settings):
@@ -46,8 +52,10 @@ def get_llm_gateway(settings: Settings):
     )
 
 
+
 def get_bootstrap_service(paths: AppPaths, file_repository: FileRepository) -> BootstrapService:
     return BootstrapService(paths, file_repository)
+
 
 
 def get_project_service(
@@ -60,6 +68,7 @@ def get_project_service(
     return ProjectService(paths, file_repository, sqlite_repository, vector_repository, bootstrap_service)
 
 
+
 def get_consultant_service(
     paths: AppPaths,
     file_repository: FileRepository,
@@ -68,12 +77,14 @@ def get_consultant_service(
     return ConsultantService(paths, file_repository, sqlite_repository)
 
 
+
 def get_bible_service(
     paths: AppPaths,
     file_repository: FileRepository,
     sqlite_repository: SQLiteRepository,
 ) -> BibleService:
     return BibleService(paths, file_repository, sqlite_repository)
+
 
 
 def get_planner_service(
@@ -85,8 +96,10 @@ def get_planner_service(
     return PlannerService(paths, file_repository, sqlite_repository, bible_service)
 
 
+
 def get_memory_service(paths: AppPaths, file_repository: FileRepository, bible_service: BibleService) -> MemoryService:
     return MemoryService(paths, file_repository, bible_service)
+
 
 
 def get_retrieval_service(
@@ -96,6 +109,7 @@ def get_retrieval_service(
     planner_service: PlannerService,
 ) -> RetrievalService:
     return RetrievalService(paths, file_repository, sqlite_repository, planner_service)
+
 
 
 def get_context_bundle_service(
@@ -108,6 +122,19 @@ def get_context_bundle_service(
     return ContextBundleService(paths, file_repository, bible_service, planner_service, retrieval_service)
 
 
+
+def get_checks_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    bible_service: BibleService,
+    planner_service: PlannerService,
+    context_bundle_service: ContextBundleService,
+) -> ChecksService:
+    return ChecksService(paths, file_repository, sqlite_repository, bible_service, planner_service, context_bundle_service)
+
+
+
 def get_scene_draft_service(
     paths: AppPaths,
     file_repository: FileRepository,
@@ -116,6 +143,7 @@ def get_scene_draft_service(
     planner_service: PlannerService,
     context_bundle_service: ContextBundleService,
     memory_service: MemoryService,
+    checks_service: ChecksService,
     llm_gateway,
 ) -> SceneDraftService:
     return SceneDraftService(
@@ -126,5 +154,6 @@ def get_scene_draft_service(
         planner_service,
         context_bundle_service,
         memory_service,
+        checks_service,
         llm_gateway,
     )

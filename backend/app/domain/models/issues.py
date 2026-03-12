@@ -42,6 +42,7 @@ class ConsistencyIssue(DomainModel):
     issue_id: str
     project_id: str
     issue_type: str
+    rule_id: str
     severity: str
     status: str
     source_scope: str
@@ -52,3 +53,38 @@ class ConsistencyIssue(DomainModel):
     suggested_fix: list[str] = Field(default_factory=list)
     checker_run_id: str
     detected_at: datetime
+
+
+class CheckSourceVersions(DomainModel):
+    story_bible_version: int = 0
+    characters_version: int = 0
+    world_version: int = 0
+    power_system_version: int = 0
+    volume_version: int = 0
+    chapter_version: int = 0
+    scene_version: int = 0
+    draft_updated_at: datetime
+
+
+class CheckRuleSummary(DomainModel):
+    rule_family: str
+    status: str
+    issue_count: int = 0
+
+
+class SceneDraftCheckReport(DomainModel):
+    report_id: str
+    project_id: str
+    volume_id: str
+    chapter_id: str
+    scene_id: str
+    draft_id: str
+    trigger: str
+    checker_version: str = "deterministic_v1"
+    created_at: datetime
+    source_versions: CheckSourceVersions
+    overall_status: str
+    blocker_count: int = 0
+    warning_count: int = 0
+    issues: list[ConsistencyIssue] = Field(default_factory=list)
+    rule_summaries: list[CheckRuleSummary] = Field(default_factory=list)

@@ -6,11 +6,13 @@ from typing import Any
 
 from backend.app.core.paths import AppPaths
 from backend.app.domain.models.common import DraftStatus, utc_now
+from backend.app.domain.models.issues import SceneDraftCheckReport
 from backend.app.domain.models.writing import ContextBundle, SceneDraft, SceneDraftManifest, SceneDraftManifestItem
 from backend.app.infra.llm_gateway import GenerateRequest, MockLLMGateway
 from backend.app.repositories.file_repository import FileRepository
 from backend.app.repositories.sqlite_repository import SQLiteRepository
 from backend.app.services.bible_service import BibleService
+from backend.app.services.checks_service import ChecksService
 from backend.app.services.context_bundle_service import ContextBundleService
 from backend.app.services.exceptions import ConflictError
 from backend.app.services.memory_service import MemoryService
@@ -27,6 +29,7 @@ class SceneDraftService:
         planner_service: PlannerService,
         context_bundle_service: ContextBundleService,
         memory_service: MemoryService,
+        checks_service: ChecksService,
         llm_gateway,
     ) -> None:
         self.paths = paths
@@ -36,6 +39,7 @@ class SceneDraftService:
         self.planner_service = planner_service
         self.context_bundle_service = context_bundle_service
         self.memory_service = memory_service
+        self.checks_service = checks_service
         self.llm_gateway = llm_gateway
 
     def generate(self, project_id: str, scene_id: str, mode: str) -> SceneDraft:
@@ -83,6 +87,11 @@ class SceneDraftService:
             context_bundle_id=bundle.context_bundle_id,
             context_bundle_path=self.paths.relative_to_project(slug, bundle_path),
             draft_path=self.paths.relative_to_project(slug, draft_path),
+            latest_check_report_path=None,
+            latest_check_run_id=None,
+            last_check_status=None,
+            last_check_blocker_count=0,
+            last_check_warning_count=0,
             model_name=self._model_name(),
             tokens_in=0,
             tokens_out=0,
@@ -113,7 +122,8 @@ class SceneDraftService:
         manifest.version += 1
         manifest.updated_at = now
         self._write_manifest(slug, scene_id, manifest)
-        return draft
+        self.checks_service.run_for_draft(project_id, draft.draft_id, trigger="generate_auto")
+        return self.get_draft(project_id, draft.draft_id)
 
     def get_scene_manifest(self, project_id: str, scene_id: str) -> SceneDraftManifest:
         project = self._require_project(project_id)
@@ -155,6 +165,12 @@ class SceneDraftService:
             return None
         return ContextBundle.model_validate(self.file_repository.read_json(path))
 
+    def get_latest_check_report(self, project_id: str, draft_id: str) -> SceneDraftCheckReport | None:
+        return self.checks_service.get_latest_report(project_id, draft_id)
+
+    def recheck_checks(self, project_id: str, draft_id: str) -> SceneDraftCheckReport:
+        return self.checks_service.run_for_draft(project_id, draft_id, trigger="manual_recheck")
+
     def accept(self, project_id: str, draft_id: str) -> SceneDraft:
         project = self._require_project(project_id)
         slug = project["slug"]
@@ -172,6 +188,8 @@ class SceneDraftService:
             or draft.source_volume_version != volume.version
         ):
             raise ConflictError("Draft source versions do not match current canonical state.")
+        self.checks_service.ensure_accept_allowed(project_id, draft_id)
+        draft = self.get_draft(project_id, draft_id)
 
         manifest = self.get_scene_manifest(project_id, draft.scene_id)
         sibling_drafts = [self.get_draft(project_id, item.draft_id) for item in manifest.items if item.draft_id != draft_id]
@@ -336,3 +354,4 @@ class SceneDraftService:
 
     def _model_name(self) -> str:
         return "mock" if isinstance(self.llm_gateway, MockLLMGateway) else getattr(self.llm_gateway, "model_name", "openai")
+

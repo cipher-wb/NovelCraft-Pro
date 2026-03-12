@@ -3,7 +3,9 @@ from __future__ import annotations
 import pytest
 
 
+
 def _build_draft_service(seeded):
+    from backend.app.services.checks_service import ChecksService
     from backend.app.services.context_bundle_service import ContextBundleService
     from backend.app.services.memory_service import MemoryService
     from backend.app.services.retrieval_service import RetrievalService
@@ -18,6 +20,7 @@ def _build_draft_service(seeded):
 
     retrieval_service = RetrievalService(paths, file_repository, sqlite_repository, planner_service)
     context_service = ContextBundleService(paths, file_repository, bible_service, planner_service, retrieval_service)
+    checks_service = ChecksService(paths, file_repository, sqlite_repository, bible_service, planner_service, context_service)
     memory_service = MemoryService(paths, file_repository, bible_service)
     return SceneDraftService(
         paths,
@@ -27,6 +30,7 @@ def _build_draft_service(seeded):
         planner_service,
         context_service,
         memory_service,
+        checks_service,
         llm_gateway,
     )
 
@@ -63,6 +67,7 @@ def test_generate_requires_all_ready_documents(service_container, target: str, p
         draft_service.generate(manifest.project_id, seeded["scene_id"], mode="outline_strict")
 
 
+
 def test_generate_is_deterministic_and_supersedes_previous_draft(service_container) -> None:
     container = service_container
     seeded = container["seed_project"](ready_scene=True, scene_count_hint=2)
@@ -79,6 +84,9 @@ def test_generate_is_deterministic_and_supersedes_previous_draft(service_contain
     assert first_reloaded.status == "superseded"
     assert manifest_payload.latest_draft_id == second.draft_id
     assert manifest_payload.accepted_draft_id is None
+    assert second.latest_check_run_id is not None
+    assert second.last_check_status == "clean"
+
 
 
 def test_accept_reject_are_strict_and_manifest_stays_consistent(service_container) -> None:
