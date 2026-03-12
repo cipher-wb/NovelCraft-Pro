@@ -4,10 +4,8 @@ from fastapi.testclient import TestClient
 
 
 
-def _prepare_ready_bible(client: TestClient) -> dict[str, str]:
-    from tests.integration.test_bible_api import _create_finalized_project
-
-    project = _create_finalized_project(client)
+def _prepare_ready_bible(client: TestClient, create_finalized_project) -> dict[str, str]:
+    project = create_finalized_project()
     create = client.post(f"/api/projects/{project['project_id']}/bible/from-consultant")
     assert create.status_code == 201
     assert client.post(f"/api/projects/{project['project_id']}/characters/confirm").status_code == 200
@@ -18,8 +16,8 @@ def _prepare_ready_bible(client: TestClient) -> dict[str, str]:
 
 
 
-def test_generate_volume_chapter_scene_flow_and_confirm(client: TestClient) -> None:
-    project = _prepare_ready_bible(client)
+def test_generate_volume_chapter_scene_flow_and_confirm(client: TestClient, create_finalized_project) -> None:
+    project = _prepare_ready_bible(client, create_finalized_project)
 
     volume_generate = client.post(f"/api/projects/{project['project_id']}/plans/volumes/generate")
     assert volume_generate.status_code == 201
@@ -52,8 +50,8 @@ def test_generate_volume_chapter_scene_flow_and_confirm(client: TestClient) -> N
 
 
 
-def test_generate_returns_409_when_target_exists_and_overwrite_false(client: TestClient) -> None:
-    project = _prepare_ready_bible(client)
+def test_generate_returns_409_when_target_exists_and_overwrite_false(client: TestClient, create_finalized_project) -> None:
+    project = _prepare_ready_bible(client, create_finalized_project)
 
     first = client.post(f"/api/projects/{project['project_id']}/plans/volumes/generate")
     second = client.post(f"/api/projects/{project['project_id']}/plans/volumes/generate")
@@ -63,8 +61,8 @@ def test_generate_returns_409_when_target_exists_and_overwrite_false(client: Tes
 
 
 
-def test_confirm_stale_plan_returns_409(client: TestClient) -> None:
-    project = _prepare_ready_bible(client)
+def test_confirm_stale_plan_returns_409(client: TestClient, create_finalized_project) -> None:
+    project = _prepare_ready_bible(client, create_finalized_project)
 
     outline = client.post(f"/api/projects/{project['project_id']}/plans/volumes/generate").json()
     volume_id = outline["volumes"][0]["volume_id"]
