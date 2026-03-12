@@ -126,4 +126,29 @@ def test_error_report_blocks_accept(service_container, monkeypatch: pytest.Monke
     with pytest.raises(ConflictError):
         checks_service.ensure_accept_allowed(manifest.project_id, draft.draft_id)
 
+def test_manual_recheck_rebuilds_context_bundle_from_current_state(service_container, monkeypatch: pytest.MonkeyPatch) -> None:
+    seeded = service_container["seed_project"](ready_scene=True, scene_count_hint=2)
+    checks_service, draft_service = _build_services(seeded)
+    manifest = seeded["manifest"]
+    planner_service = seeded["planner_service"]
+    second_scene_id = seeded["scenes"][1].scene_id
+
+    planner_service.confirm_scene(manifest.project_id, second_scene_id)
+    draft = draft_service.generate(manifest.project_id, second_scene_id, mode="outline_strict")
+
+    first_draft = draft_service.generate(manifest.project_id, seeded["scene_id"], mode="outline_strict")
+    draft_service.accept(manifest.project_id, first_draft.draft_id)
+
+    original_build = checks_service.context_bundle_service.build
+    calls: list[str] = []
+
+    def _tracked_build(project_id: str, scene_id: str):
+        calls.append(scene_id)
+        return original_build(project_id, scene_id)
+
+    monkeypatch.setattr(checks_service.context_bundle_service, "build", _tracked_build)
+    report = checks_service.run_for_draft(manifest.project_id, draft.draft_id, trigger="manual_recheck")
+
+    assert calls == [second_scene_id]
+    assert report.overall_status == "clean"
 

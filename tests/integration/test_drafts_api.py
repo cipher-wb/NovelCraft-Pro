@@ -167,7 +167,10 @@ def test_warning_only_draft_accept_returns_200(client: TestClient, build_ready_s
 
     draft_path = _project_root(project["slug"]) / draft["draft_path"]
     payload = __import__("json").loads(draft_path.read_text(encoding="utf-8"))
-    payload["content_md"] = payload["content_md"].replace("阻碍：反派打压", "阻碍：")
+    obstacle = "反派打压"
+    payload["content_md"] = payload["content_md"].replace(f"阻碍：{obstacle}", "阻碍：")
+    payload["content_md"] = payload["content_md"].replace(f"先遭遇“{obstacle}”", "先遭遇“”")
+    payload["summary"] = payload["summary"].replace(obstacle, "")
     payload["updated_at"] = "2026-03-12T12:00:00+00:00"
     draft_path.write_text(__import__("json").dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -198,3 +201,48 @@ def test_scene_studio_page_is_available(client: TestClient) -> None:
     response = client.get("/studio/scene.html")
     assert response.status_code == 200
 
+def test_accept_preflight_reruns_checks_after_memory_changes(client: TestClient, build_ready_scene_project) -> None:
+    project = build_ready_scene_project(confirm_scene=True)
+    second_scene_id = project["scene_ids"][1]
+    assert client.post(f"/api/projects/{project['project_id']}/plans/scenes/{second_scene_id}/confirm").status_code == 200
+
+    second_generated = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{second_scene_id}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert second_generated.status_code == 201
+    second_draft = second_generated.json()["draft"]
+    old_run_id = second_draft["latest_check_run_id"]
+
+    first_generated = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{project['scene_id']}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert first_generated.status_code == 201
+    first_draft_id = first_generated.json()["draft"]["draft_id"]
+    assert client.post(f"/api/projects/{project['project_id']}/drafts/{first_draft_id}/accept").status_code == 200
+
+    accepted = client.post(f"/api/projects/{project['project_id']}/drafts/{second_draft['draft_id']}/accept")
+    assert accepted.status_code == 200
+    assert accepted.json()["draft"]["latest_check_run_id"] != old_run_id
+
+
+def test_corrupt_context_bundle_degrades_without_500(client: TestClient, build_ready_scene_project) -> None:
+    project = build_ready_scene_project(confirm_scene=True)
+    generated = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{project['scene_id']}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert generated.status_code == 201
+    draft = generated.json()["draft"]
+
+    bundle_path = _project_root(project["slug"]) / draft["context_bundle_path"]
+    bundle_path.write_text("{broken json", encoding="utf-8")
+
+    fetched = client.get(f"/api/projects/{project['project_id']}/drafts/{draft['draft_id']}")
+    assert fetched.status_code == 200
+    assert fetched.json()["context_bundle"] is not None
+
+    rejected = client.post(f"/api/projects/{project['project_id']}/drafts/{draft['draft_id']}/reject")
+    assert rejected.status_code == 200
+    assert rejected.json()["draft"]["status"] == "rejected"

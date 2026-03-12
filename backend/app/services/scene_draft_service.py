@@ -158,12 +158,17 @@ class SceneDraftService:
         project = self._require_project(project_id)
         slug = project["slug"]
         draft = self.get_draft(project_id, draft_id)
-        if not draft.context_bundle_path:
+        if draft.context_bundle_path:
+            path = self.paths.project_root(slug) / draft.context_bundle_path
+            if self.file_repository.exists(path):
+                try:
+                    return ContextBundle.model_validate(self.file_repository.read_json(path))
+                except Exception:
+                    pass
+        try:
+            return self.context_bundle_service.build(project_id, draft.scene_id)
+        except Exception:
             return None
-        path = self.paths.project_root(slug) / draft.context_bundle_path
-        if not self.file_repository.exists(path):
-            return None
-        return ContextBundle.model_validate(self.file_repository.read_json(path))
 
     def get_latest_check_report(self, project_id: str, draft_id: str) -> SceneDraftCheckReport | None:
         return self.checks_service.get_latest_report(project_id, draft_id)
@@ -354,4 +359,5 @@ class SceneDraftService:
 
     def _model_name(self) -> str:
         return "mock" if isinstance(self.llm_gateway, MockLLMGateway) else getattr(self.llm_gateway, "model_name", "openai")
+
 

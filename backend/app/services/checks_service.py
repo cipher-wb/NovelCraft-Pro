@@ -17,9 +17,9 @@ from backend.app.services.check_rule_evaluators import (
     TimelineOrderEvaluator,
     WorldPowerConflictEvaluator,
 )
+from backend.app.services.context_bundle_service import ContextBundleService
 from backend.app.services.exceptions import ConflictError
 from backend.app.services.planner_service import PlannerService
-from backend.app.services.context_bundle_service import ContextBundleService
 
 
 class ChecksService:
@@ -52,7 +52,7 @@ class ChecksService:
         scene = self.planner_service.get_scene(project_id, draft.scene_id)
         chapter = self.planner_service.get_chapter(project_id, draft.chapter_id)
         volume = self.planner_service.get_volume(project_id, draft.volume_id)
-        context_bundle = self._load_context_bundle(project_id, slug, draft)
+        context_bundle = self._load_context_bundle(project_id, slug, draft, trigger)
         report_id = f"check_{uuid.uuid4().hex[:12]}"
         snapshot = self._build_source_snapshot(aggregate, volume, chapter, scene, draft)
         input_ctx = CheckInputContext(
@@ -81,7 +81,13 @@ class ChecksService:
                 rule_summaries.append(self._build_rule_summary(evaluator.rule_family, family_issues))
         except Exception:
             overall_status = "error"
-            rule_summaries.append(CheckRuleSummary(rule_family=getattr(evaluator, "rule_family", "checks"), status="error", issue_count=0))
+            rule_summaries.append(
+                CheckRuleSummary(
+                    rule_family=getattr(evaluator, "rule_family", "checks"),
+                    status="error",
+                    issue_count=0,
+                )
+            )
 
         blocker_count = sum(1 for issue in issues if issue.severity == "blocker")
         warning_count = sum(1 for issue in issues if issue.severity == "warning")
@@ -117,9 +123,7 @@ class ChecksService:
         return SceneDraftCheckReport.model_validate(self.file_repository.read_json(path))
 
     def ensure_accept_allowed(self, project_id: str, draft_id: str) -> SceneDraftCheckReport:
-        report = self.get_latest_report(project_id, draft_id)
-        if report is None or not self._is_report_fresh(project_id, draft_id, report):
-            report = self.run_for_draft(project_id, draft_id, trigger="accept_preflight")
+        report = self.run_for_draft(project_id, draft_id, trigger="accept_preflight")
         if report.overall_status in {"blocked", "error"}:
             raise ConflictError("Draft checks blocked accept.")
         return report
@@ -152,20 +156,14 @@ class ChecksService:
             issue_count=len(issues),
         )
 
-    def _is_report_fresh(self, project_id: str, draft_id: str, report: SceneDraftCheckReport) -> bool:
-        draft = self._load_draft(project_id, draft_id)
-        aggregate = self.bible_service.get_bible_aggregate(project_id)
-        scene = self.planner_service.get_scene(project_id, draft.scene_id)
-        chapter = self.planner_service.get_chapter(project_id, draft.chapter_id)
-        volume = self.planner_service.get_volume(project_id, draft.volume_id)
-        current_snapshot = self._build_source_snapshot(aggregate, volume, chapter, scene, draft)
-        return current_snapshot.model_dump(mode="json") == report.source_versions.model_dump(mode="json")
-
-    def _load_context_bundle(self, project_id: str, slug: str, draft: SceneDraft) -> ContextBundle:
-        if draft.context_bundle_path:
+    def _load_context_bundle(self, project_id: str, slug: str, draft: SceneDraft, trigger: str) -> ContextBundle:
+        if trigger == "generate_auto" and draft.context_bundle_path:
             path = self.paths.project_root(slug) / draft.context_bundle_path
             if self.file_repository.exists(path):
-                return ContextBundle.model_validate(self.file_repository.read_json(path))
+                try:
+                    return ContextBundle.model_validate(self.file_repository.read_json(path))
+                except Exception:
+                    pass
         return self.context_bundle_service.build(project_id, draft.scene_id)
 
     def _refresh_draft_check_summary(self, slug: str, draft: SceneDraft, report: SceneDraftCheckReport) -> None:
