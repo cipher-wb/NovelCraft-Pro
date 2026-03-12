@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NovelCraft Pro Studio</title>
+  <style>
+    :root {
+      --bg: #f4efe7;
+      --panel: #fffaf2;
+      --ink: #1f1a17;
+      --muted: #6f6257;
+      --accent: #b5522d;
+      --border: #d9c9b7;
+    }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: radial-gradient(circle at top, #fff8eb, var(--bg));
+      color: var(--ink);
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+    h1 { margin: 0 0 12px; }
+    p { color: var(--muted); }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 12px 40px rgba(31, 26, 23, 0.06);
+    }
+    label { display:block; margin: 12px 0 6px; font-weight: 600; }
+    input, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--ink);
+    }
+    button {
+      margin-top: 14px;
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #221d19;
+      color: #f8f3ee;
+      padding: 16px;
+      border-radius: 12px;
+      overflow: auto;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>NovelCraft Pro</h1>
+  <p>Phase 1 最小工作台，仅用于验证项目创建与立项顾问 mock 流程。</p>
+
+  <section>
+    <h2>1. 创建项目</h2>
+    <div class="grid">
+      <div>
+        <label for="title">书名</label>
+        <input id="title" value="我的新书">
+      </div>
+      <div>
+        <label for="genre">题材</label>
+        <input id="genre" value="修仙爽文">
+      </div>
+      <div>
+        <label for="targetChapters">目标章数</label>
+        <input id="targetChapters" type="number" value="300">
+      </div>
+      <div>
+        <label for="targetWords">目标字数</label>
+        <input id="targetWords" type="number" value="2000000">
+      </div>
+    </div>
+    <button id="createProject">创建项目</button>
+  </section>
+
+  <section>
+    <h2>2. 启动立项顾问</h2>
+    <label for="brief">项目简介</label>
+    <textarea id="brief" rows="3">想写一本都市修仙打脸升级流</textarea>
+    <label for="subgenres">细分题材（逗号分隔）</label>
+    <input id="subgenres" value="都市异能,升级流">
+    <label for="constraints">约束（逗号分隔）</label>
+    <input id="constraints" value="作者主导,长线连载">
+    <button id="startConsultant">启动 Session</button>
+  </section>
+
+  <section>
+    <h2>3. 回答当前问题</h2>
+    <div id="questionBox">当前还没有问题。</div>
+    <label for="answer">回答</label>
+    <textarea id="answer" rows="3"></textarea>
+    <button id="submitAnswer">提交回答</button>
+    <button id="finalizeSession">生成立项档案</button>
+  </section>
+
+  <section>
+    <h2>调试输出</h2>
+    <pre id="output">等待操作...</pre>
+  </section>
+</main>
+<script>
+  let projectId = null;
+  let sessionId = null;
+  let currentQuestion = null;
+
+  const output = document.getElementById('output');
+  const questionBox = document.getElementById('questionBox');
+
+  function setOutput(payload) {
+    output.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  }
+
+  function setQuestion(question) {
+    currentQuestion = question;
+    if (!question) {
+      questionBox.textContent = '所有问题已回答，可以 finalize。';
+      return;
+    }
+    questionBox.textContent = `${question.question_id}: ${question.prompt}`;
+  }
+
+  async function postJson(url, body) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(JSON.stringify(payload));
+    }
+    return payload;
+  }
+
+  document.getElementById('createProject').addEventListener('click', async () => {
+    const payload = await postJson('/api/projects', {
+      title: document.getElementById('title').value,
+      genre: document.getElementById('genre').value,
+      target_chapters: Number(document.getElementById('targetChapters').value),
+      target_words: Number(document.getElementById('targetWords').value)
+    });
+    projectId = payload.project_id;
+    setOutput(payload);
+  });
+
+  document.getElementById('startConsultant').addEventListener('click', async () => {
+    if (!projectId) {
+      setOutput('请先创建项目。');
+      return;
+    }
+    const payload = await postJson(`/api/projects/${projectId}/consultant/sessions`, {
+      brief: document.getElementById('brief').value,
+      preferred_subgenres: document.getElementById('subgenres').value.split(',').map(v => v.trim()).filter(Boolean),
+      constraints: document.getElementById('constraints').value.split(',').map(v => v.trim()).filter(Boolean)
+    });
+    sessionId = payload.session_id;
+    setQuestion(payload.current_question);
+    setOutput(payload);
+  });
+
+  document.getElementById('submitAnswer').addEventListener('click', async () => {
+    if (!sessionId || !currentQuestion) {
+      setOutput('当前没有可回答的问题。');
+      return;
+    }
+    const payload = await postJson(`/api/consultant/sessions/${sessionId}/answer`, {
+      question_id: currentQuestion.question_id,
+      answer: document.getElementById('answer').value
+    });
+    setQuestion(payload.current_question);
+    document.getElementById('answer').value = '';
+    setOutput(payload);
+  });
+
+  document.getElementById('finalizeSession').addEventListener('click', async () => {
+    if (!sessionId) {
+      setOutput('请先启动 consultant session。');
+      return;
+    }
+    const response = await fetch(`/api/consultant/sessions/${sessionId}/finalize`, {method: 'POST'});
+    const payload = await response.json();
+    if (!response.ok) {
+      setOutput(payload);
+      return;
+    }
+    setOutput(payload);
+  });
+</script>
+</body>
+</html>
