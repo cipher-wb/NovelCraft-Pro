@@ -60,3 +60,77 @@ def test_consultant_flow_runs_start_answer_finalize(
     dossier_path = temp_roots["projects_root"] / slug / "consultant" / "dossier.json"
     assert dossier_path.exists()
     assert finalize_response.json()["dossier"]["project_id"] == project_id
+
+
+
+def test_start_consultant_session_returns_404_when_project_missing(client: TestClient) -> None:
+    response = client.post(
+        "/api/projects/proj_missing/consultant/sessions",
+        json={
+            "brief": "想写一本都市修仙打脸升级流",
+            "preferred_subgenres": ["都市异能", "升级流"],
+            "constraints": ["作者主导", "长线连载"],
+        },
+    )
+
+    assert response.status_code == 404
+
+
+
+def test_answer_returns_400_when_question_id_does_not_match_current_step(client: TestClient) -> None:
+    project_response = client.post(
+        "/api/projects",
+        json={
+            "title": "错位提问测试",
+            "genre": "都市异能",
+            "target_chapters": 100,
+            "target_words": 800_000,
+        },
+    )
+    project_id = project_response.json()["project_id"]
+    start_response = client.post(
+        f"/api/projects/{project_id}/consultant/sessions",
+        json={
+            "brief": "测试 question id 不匹配",
+            "preferred_subgenres": ["都市异能"],
+            "constraints": ["作者主导"],
+        },
+    )
+    session_id = start_response.json()["session_id"]
+
+    answer_response = client.post(
+        f"/api/consultant/sessions/{session_id}/answer",
+        json={
+            "question_id": "golden_finger_design",
+            "answer": "错误步进",
+        },
+    )
+
+    assert answer_response.status_code == 400
+
+
+
+def test_finalize_returns_400_when_session_is_incomplete(client: TestClient) -> None:
+    project_response = client.post(
+        "/api/projects",
+        json={
+            "title": "未答完终结测试",
+            "genre": "都市异能",
+            "target_chapters": 100,
+            "target_words": 800_000,
+        },
+    )
+    project_id = project_response.json()["project_id"]
+    start_response = client.post(
+        f"/api/projects/{project_id}/consultant/sessions",
+        json={
+            "brief": "测试未答完 finalize",
+            "preferred_subgenres": ["都市异能"],
+            "constraints": ["作者主导"],
+        },
+    )
+    session_id = start_response.json()["session_id"]
+
+    finalize_response = client.post(f"/api/consultant/sessions/{session_id}/finalize")
+
+    assert finalize_response.status_code == 400

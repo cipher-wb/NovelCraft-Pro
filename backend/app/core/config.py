@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict
 class Settings(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    app_name: str = "novelcraft-pro"
     app_env: str = "development"
     app_host: str = "127.0.0.1"
     app_port: int = 8000
@@ -30,6 +31,7 @@ class Settings(BaseModel):
             return path if path.is_absolute() else (cwd / path).resolve()
 
         return cls(
+            app_name=os.getenv("APP_NAME", "novelcraft-pro"),
             app_env=os.getenv("APP_ENV", "development"),
             app_host=os.getenv("APP_HOST", "127.0.0.1"),
             app_port=int(os.getenv("APP_PORT", "8000")),

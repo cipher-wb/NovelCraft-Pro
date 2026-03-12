@@ -53,3 +53,65 @@ def test_sqlite_repository_initializes_schema_and_roundtrips_records(workspace_t
     assert session is not None
     assert session["project_id"] == "proj_001"
     assert len(project_items) == 1
+
+
+
+def test_sqlite_repository_updates_consultant_session_fields(workspace_tmp_dir: Path) -> None:
+    from backend.app.repositories.sqlite_repository import SQLiteRepository
+
+    db_path = workspace_tmp_dir / "app.db"
+    repo = SQLiteRepository(db_path)
+    repo.initialize()
+
+    repo.create_project_record(
+        {
+            "project_id": "proj_001",
+            "slug": "my-book",
+            "title": "我的新书",
+            "genre": "修仙爽文",
+            "status": "bootstrapped",
+            "target_chapters": 300,
+            "target_words": 2_000_000,
+            "root_path": "projects/my-book",
+            "manifest_path": "projects/my-book/project.json",
+            "created_at": "2026-03-12T00:00:00Z",
+            "updated_at": "2026-03-12T00:00:00Z"
+        }
+    )
+
+    repo.create_consultant_session(
+        {
+            "session_id": "cs_001",
+            "project_id": "proj_001",
+            "status": "in_progress",
+            "brief": "都市修仙打脸升级流",
+            "preferred_subgenres_json": '["都市异能","升级流"]',
+            "constraints_json": '["作者主导"]',
+            "current_question_index": 0,
+            "total_questions": 6,
+            "answers_json": "{}",
+            "dossier_path": None,
+            "created_at": "2026-03-12T00:00:00Z",
+            "updated_at": "2026-03-12T00:00:00Z"
+        }
+    )
+
+    repo.update_consultant_session(
+        "cs_001",
+        {
+            "status": "completed",
+            "current_question_index": 6,
+            "answers_json": '{"market_hook":"done"}',
+            "dossier_path": "projects/my-book/consultant/dossier.json",
+            "updated_at": "2026-03-12T00:01:00Z",
+        },
+    )
+
+    session = repo.get_consultant_session("cs_001")
+
+    assert session is not None
+    assert session["status"] == "completed"
+    assert session["current_question_index"] == 6
+    assert session["answers_json"] == '{"market_hook":"done"}'
+    assert session["dossier_path"] == "projects/my-book/consultant/dossier.json"
+    assert session["updated_at"] == "2026-03-12T00:01:00Z"

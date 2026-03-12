@@ -29,6 +29,29 @@ def test_create_project_creates_manifest_and_directories(
     assert project_root.exists()
     assert manifest_path.exists()
     assert payload["manifest"]["title"] == "我的新书"
+    assert slug.startswith("novel-")
+
+
+
+def test_chinese_title_slug_uses_stable_base_and_numeric_suffix(client: TestClient) -> None:
+    request = {
+        "title": "我的新书",
+        "genre": "修仙爽文",
+        "target_chapters": 300,
+        "target_words": 2_000_000,
+    }
+
+    first = client.post("/api/projects", json=request)
+    second = client.post("/api/projects", json=request)
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    first_slug = first.json()["slug"]
+    second_slug = second.json()["slug"]
+
+    assert first_slug.startswith("novel-")
+    assert second_slug == f"{first_slug}-2"
+
 
 
 def test_project_read_endpoints_return_created_project(

@@ -9,3 +9,4 @@ def test_health_endpoint_returns_ok(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+    assert response.json()["app"] == "novelcraft-pro"

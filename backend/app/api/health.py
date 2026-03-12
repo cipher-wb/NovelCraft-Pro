@@ -10,4 +10,4 @@ router = APIRouter()
 
 @router.get("/health")
 def health(settings: Settings = Depends(get_app_settings)) -> dict[str, str]:
-    return {"status": "ok", "app": "webnovel-system", "mode": settings.llm_mode}
+    return {"status": "ok", "app": settings.app_name, "mode": settings.llm_mode}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 import uuid
 from typing import Any
@@ -103,12 +104,20 @@ class ProjectService:
         )
 
     def _build_unique_slug(self, title: str) -> str:
-        base = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
-        if not base:
-            base = f"project-{uuid.uuid4().hex[:8]}"
-        slug = base
-        suffix = 1
+        # Rule: trim/lower the title, keep ASCII letters and digits as the readable stem,
+        # fall back to "novel" when no ASCII stem remains, then append a stable SHA-1
+        # short id. Duplicate titles reuse the same base and receive -2, -3 ... suffixes.
+        normalized_title = re.sub(r"\s+", " ", title).strip().lower() or "untitled"
+        readable_stem = re.sub(r"[^a-z0-9]+", "-", normalized_title).strip("-")
+        if not readable_stem:
+            readable_stem = "novel"
+        readable_stem = readable_stem[:32]
+        stable_suffix = hashlib.sha1(normalized_title.encode("utf-8")).hexdigest()[:8]
+        base_slug = f"{readable_stem}-{stable_suffix}"
+
+        slug = base_slug
+        suffix = 2
         while self.sqlite_repository.get_project_record_by_slug(slug) is not None:
+            slug = f"{base_slug}-{suffix}"
             suffix += 1
-            slug = f"{base}-{suffix}"
         return slug
