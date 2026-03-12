@@ -7,6 +7,7 @@ from backend.app.core.paths import AppPaths
 from backend.app.domain.models.common import utc_now
 from backend.app.domain.models.planning import MasterOutlineDocument
 from backend.app.domain.models.project import CharacterDocument, PowerSystemDocument, StoryBible, WorldDocument
+from backend.app.domain.models.writing import AcceptedSceneMemoryDocument
 from backend.app.repositories.file_repository import FileRepository
 
 
@@ -76,6 +77,10 @@ class BootstrapService:
         self.file_repository.write_json(memory_dir / "timeline.json", [])
         self.file_repository.write_json(memory_dir / "foreshadows.json", [])
         self.file_repository.write_json(memory_dir / "payoffs.json", [])
+        self.file_repository.write_json(
+            self.paths.accepted_scenes_memory_path(slug),
+            AcceptedSceneMemoryDocument(project_id=manifest_payload["project_id"], updated_at=now).model_dump(mode="json"),
+        )
 
         return {
             "root": project_root,

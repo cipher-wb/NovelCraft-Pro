@@ -187,7 +187,7 @@ class PlannerService:
         volume.chapter_ids = chapter_ids
         volume.version += 1
         self.file_repository.write_json(volume_path, volume.model_dump(mode="json"))
-        self._sync_outline_volume_ref(slug, volume, mark_stale=True)
+        self._sync_outline_volume_ref(slug, volume, mark_stale=False)
         return items
 
     def list_chapters(self, project_id: str, volume_id: str) -> list[ChapterPlan]:
@@ -303,8 +303,6 @@ class PlannerService:
         chapter.scene_ids = scene_ids
         chapter.version += 1
         self.file_repository.write_json(chapter_path, chapter.model_dump(mode="json"))
-        self._mark_outline_stale(slug)
-        self._mark_volume_stale(slug, chapter.volume_id)
         return items
 
     def list_scenes(self, project_id: str, chapter_id: str) -> list[ScenePlan]:
@@ -582,3 +580,5 @@ class PlannerService:
             if scene.scene_id == scene_id:
                 return scene, path
         raise KeyError(scene_id)
+
+

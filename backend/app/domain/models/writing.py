@@ -1,27 +1,216 @@
 from __future__ import annotations
 
 from datetime import datetime
+
 from pydantic import Field
 
 from backend.app.domain.models.common import DomainModel
 
 
+class StoryAnchor(DomainModel):
+    title: str = ""
+    genre: str = ""
+    subgenres: list[str] = Field(default_factory=list)
+    logline: str = ""
+    premise: str = ""
+    selling_points: list[str] = Field(default_factory=list)
+    core_conflicts: list[str] = Field(default_factory=list)
+    story_promise: str = ""
+    narrative_constraints: list[str] = Field(default_factory=list)
+    world_hook: str = ""
+    power_hook: str = ""
+
+
+class VolumeAnchor(DomainModel):
+    volume_id: str
+    volume_no: int
+    title: str = ""
+    summary: str = ""
+    goal: str = ""
+    core_conflict: str = ""
+    upgrade_target: str = ""
+
+
+class ChapterAnchor(DomainModel):
+    chapter_id: str
+    chapter_no: int
+    title: str = ""
+    summary: str = ""
+    purpose: str = ""
+    main_conflict: str = ""
+    hook: str = ""
+    entry_state: list[str] = Field(default_factory=list)
+    exit_state: list[str] = Field(default_factory=list)
+
+
+class SceneAnchor(DomainModel):
+    scene_id: str
+    scene_no: int
+    title: str = ""
+    summary: str = ""
+    scene_type: str = ""
+    goal: str = ""
+    obstacle: str = ""
+    turning_point: str = ""
+    outcome: str = ""
+    location_id: str | None = None
+    time_anchor: str = ""
+    must_include: list[str] = Field(default_factory=list)
+    forbidden: list[str] = Field(default_factory=list)
+    target_words: int = 0
+    emotional_beat: str = ""
+    continuity_notes: str = ""
+
+
+class CharacterBrief(DomainModel):
+    character_id: str
+    name: str
+    role: str
+    is_protagonist: bool = False
+    archetype: str = ""
+    realm_level: str = ""
+    traits: list[str] = Field(default_factory=list)
+    public_goal: str = ""
+    private_goal: str = ""
+    relationship_summaries: list[str] = Field(default_factory=list)
+
+
+class FactionBrief(DomainModel):
+    faction_id: str
+    name: str
+    goal: str = ""
+    public_image: str = ""
+
+
+class LocationBrief(DomainModel):
+    location_id: str
+    name: str
+    type: str = ""
+    description: str = ""
+    tags: list[str] = Field(default_factory=list)
+
+
+class PowerBrief(DomainModel):
+    system_name: str = ""
+    core_rules: list[str] = Field(default_factory=list)
+    upgrade_rhythm_guideline: str = ""
+
+
+class ContinuityBrief(DomainModel):
+    previous_accepted_scene_id: str | None = None
+    previous_accepted_scene_summary: str = ""
+
+
+class ContextSourceVersions(DomainModel):
+    story_bible_version: int = 0
+    characters_version: int = 0
+    world_version: int = 0
+    power_system_version: int = 0
+    volume_version: int = 0
+    chapter_version: int = 0
+    scene_version: int = 0
+
+
+class ContextBundle(DomainModel):
+    context_bundle_id: str
+    project_id: str
+    volume_id: str
+    chapter_id: str
+    scene_id: str
+    created_at: datetime
+    source_versions: ContextSourceVersions
+    story_anchor: StoryAnchor
+    volume_anchor: VolumeAnchor
+    chapter_anchor: ChapterAnchor
+    scene_anchor: SceneAnchor
+    character_briefs: list[CharacterBrief] = Field(default_factory=list)
+    faction_briefs: list[FactionBrief] = Field(default_factory=list)
+    location_brief: LocationBrief | None = None
+    power_brief: PowerBrief | None = None
+    continuity: ContinuityBrief = Field(default_factory=ContinuityBrief)
+
+
 class SceneDraft(DomainModel):
     draft_id: str
     project_id: str
+    volume_id: str
     chapter_id: str
     scene_id: str
+    chapter_no: int
+    scene_no: int
+    draft_no: int
     operation: str
+    candidate_mode: str
     status: str
     content_md: str
     summary: str = ""
     context_bundle_id: str | None = None
+    context_bundle_path: str | None = None
+    draft_path: str | None = None
     model_name: str = ""
     tokens_in: int = 0
     tokens_out: int = 0
+    source_scene_version: int = 0
+    source_chapter_version: int = 0
+    source_volume_version: int = 0
+    created_at: datetime
+    updated_at: datetime
+    accepted_at: datetime | None = None
+    rejected_at: datetime | None = None
+    supersedes_draft_id: str | None = None
+    memory_stub_record_id: str | None = None
+
+
+class SceneDraftManifestItem(DomainModel):
+    draft_id: str
+    draft_no: int
+    status: str
+    candidate_mode: str
+    summary: str = ""
+    draft_path: str
+    context_bundle_path: str | None = None
     created_at: datetime
     accepted_at: datetime | None = None
-    supersedes_draft_id: str | None = None
+    rejected_at: datetime | None = None
+
+
+class SceneDraftManifest(DomainModel):
+    project_id: str
+    volume_id: str
+    chapter_id: str
+    scene_id: str
+    version: int = 1
+    updated_at: datetime
+    latest_draft_id: str | None = None
+    accepted_draft_id: str | None = None
+    last_draft_no: int = 0
+    items: list[SceneDraftManifestItem] = Field(default_factory=list)
+
+
+class AcceptedSceneMemoryItem(DomainModel):
+    memory_id: str
+    scene_id: str
+    chapter_id: str
+    volume_id: str
+    draft_id: str
+    chapter_no: int
+    scene_no: int
+    scene_title: str
+    scene_type: str = ""
+    summary: str = ""
+    summary_source: str = "draft_summary"
+    character_ids: list[str] = Field(default_factory=list)
+    location_id: str | None = None
+    time_anchor: str = ""
+    accepted_at: datetime
+    source_scene_version: int = 0
+
+
+class AcceptedSceneMemoryDocument(DomainModel):
+    project_id: str
+    version: int = 1
+    updated_at: datetime
+    items: list[AcceptedSceneMemoryItem] = Field(default_factory=list)
 
 
 class CharacterStateSnapshot(DomainModel):

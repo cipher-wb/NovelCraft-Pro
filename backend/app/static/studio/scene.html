@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NovelCraft Pro Scene Draft Studio</title>
+  <style>
+    :root {
+      --bg: #f4efe7;
+      --panel: #fffaf2;
+      --ink: #1f1a17;
+      --muted: #6f6257;
+      --accent: #b5522d;
+      --border: #d9c9b7;
+    }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: radial-gradient(circle at top, #fff8eb, var(--bg));
+      color: var(--ink);
+    }
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      margin-top: 16px;
+      box-shadow: 0 12px 40px rgba(31, 26, 23, 0.06);
+    }
+    h1, h2 {
+      margin: 0 0 10px;
+    }
+    p { color: var(--muted); }
+    label { display:block; margin: 10px 0 6px; font-weight: 600; }
+    input, select, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--ink);
+    }
+    button {
+      margin-top: 12px;
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+      margin-right: 8px;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #221d19;
+      color: #f8f3ee;
+      padding: 16px;
+      border-radius: 12px;
+      overflow: auto;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .draft-list button {
+      width: 100%;
+      text-align: left;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>NovelCraft Pro Scene Draft Studio</h1>
+  <p>Phase 3A 最小场景草稿工作台：加载 scene、生成 draft、查看 draft、accept / reject。</p>
+
+  <section>
+    <h2>1. 载入 Scene</h2>
+    <div class="grid">
+      <div>
+        <label for="projectId">Project ID</label>
+        <input id="projectId" placeholder="proj_xxx">
+      </div>
+      <div>
+        <label for="sceneId">Scene ID</label>
+        <input id="sceneId" placeholder="scene_0001_001">
+      </div>
+      <div>
+        <label for="mode">生成模式</label>
+        <select id="mode">
+          <option value="outline_strict">outline_strict</option>
+          <option value="momentum">momentum</option>
+        </select>
+      </div>
+    </div>
+    <button id="loadScene">加载 Scene</button>
+    <button id="generateDraft">生成 Draft</button>
+  </section>
+
+  <section>
+    <h2>2. Scene 摘要</h2>
+    <pre id="sceneOutput">等待加载 scene...</pre>
+  </section>
+
+  <section>
+    <h2>3. Draft Manifest</h2>
+    <div id="manifestMeta" class="meta">尚未加载。</div>
+    <div id="draftList" class="draft-list"></div>
+  </section>
+
+  <section>
+    <h2>4. Draft 详情</h2>
+    <div id="draftMeta" class="meta">尚未选择 draft。</div>
+    <button id="acceptDraft">Accept</button>
+    <button id="rejectDraft">Reject</button>
+    <pre id="draftOutput">等待选择 draft...</pre>
+  </section>
+
+  <section>
+    <h2>调试输出</h2>
+    <pre id="debugOutput">等待操作...</pre>
+  </section>
+</main>
+<script>
+  let currentProjectId = '';
+  let currentSceneId = '';
+  let currentDraftId = null;
+
+  const sceneOutput = document.getElementById('sceneOutput');
+  const debugOutput = document.getElementById('debugOutput');
+  const draftOutput = document.getElementById('draftOutput');
+  const draftMeta = document.getElementById('draftMeta');
+  const manifestMeta = document.getElementById('manifestMeta');
+  const draftList = document.getElementById('draftList');
+
+  function setDebug(payload) {
+    debugOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  }
+
+  async function fetchJson(url, options = {}) {
+    const response = await fetch(url, options);
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(JSON.stringify(payload));
+    }
+    return payload;
+  }
+
+  async function loadScene() {
+    currentProjectId = document.getElementById('projectId').value.trim();
+    currentSceneId = document.getElementById('sceneId').value.trim();
+    if (!currentProjectId || !currentSceneId) {
+      setDebug('请先输入 project_id 和 scene_id。');
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/plans/scenes/${currentSceneId}`);
+      sceneOutput.textContent = JSON.stringify(payload, null, 2);
+      setDebug(payload);
+      await loadManifest();
+    } catch (error) {
+      setDebug(String(error));
+    }
+  }
+
+  async function loadManifest() {
+    if (!currentProjectId || !currentSceneId) {
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/drafts/scenes/${currentSceneId}`);
+      manifestMeta.textContent = `latest=${payload.latest_draft_id || '-'} accepted=${payload.accepted_draft_id || '-'} last_no=${payload.last_draft_no}`;
+      draftList.innerHTML = '';
+      for (const item of payload.items) {
+        const button = document.createElement('button');
+        button.textContent = `#${item.draft_no} ${item.status} ${item.candidate_mode} ${item.summary || ''}`;
+        button.addEventListener('click', () => loadDraft(item.draft_id));
+        draftList.appendChild(button);
+      }
+    } catch (error) {
+      manifestMeta.textContent = 'manifest 不可用';
+      draftList.innerHTML = '';
+    }
+  }
+
+  async function loadDraft(draftId) {
+    currentDraftId = draftId;
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/drafts/${draftId}`);
+      draftMeta.textContent = `draft=${payload.draft.draft_id} status=${payload.draft.status} mode=${payload.draft.candidate_mode}`;
+      draftOutput.textContent = payload.draft.content_md;
+      setDebug(payload);
+    } catch (error) {
+      setDebug(String(error));
+    }
+  }
+
+  async function generateDraft() {
+    currentProjectId = document.getElementById('projectId').value.trim();
+    currentSceneId = document.getElementById('sceneId').value.trim();
+    if (!currentProjectId || !currentSceneId) {
+      setDebug('请先输入 project_id 和 scene_id。');
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/drafts/scenes/${currentSceneId}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: document.getElementById('mode').value })
+      });
+      currentDraftId = payload.draft.draft_id;
+      draftMeta.textContent = `draft=${payload.draft.draft_id} status=${payload.draft.status} mode=${payload.draft.candidate_mode}`;
+      draftOutput.textContent = payload.draft.content_md;
+      setDebug(payload);
+      await loadManifest();
+    } catch (error) {
+      setDebug(String(error));
+    }
+  }
+
+  async function actDraft(action) {
+    if (!currentProjectId || !currentDraftId) {
+      setDebug('请先选择 draft。');
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/drafts/${currentDraftId}/${action}`, {
+        method: 'POST'
+      });
+      draftMeta.textContent = `draft=${payload.draft.draft_id} status=${payload.draft.status} mode=${payload.draft.candidate_mode}`;
+      draftOutput.textContent = payload.draft.content_md;
+      setDebug(payload);
+      await loadManifest();
+    } catch (error) {
+      setDebug(String(error));
+    }
+  }
+
+  document.getElementById('loadScene').addEventListener('click', loadScene);
+  document.getElementById('generateDraft').addEventListener('click', generateDraft);
+  document.getElementById('acceptDraft').addEventListener('click', () => actDraft('accept'));
+  document.getElementById('rejectDraft').addEventListener('click', () => actDraft('reject'));
+</script>
+</body>
+</html>

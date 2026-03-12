@@ -28,6 +28,9 @@ class AppPaths:
     def project_root(self, slug: str) -> Path:
         return self.projects_root / slug
 
+    def relative_to_project(self, slug: str, path: Path) -> str:
+        return path.relative_to(self.project_root(slug)).as_posix()
+
     def project_manifest_path(self, slug: str) -> Path:
         return self.project_root(slug) / "project.json"
 
@@ -82,8 +85,26 @@ class AppPaths:
     def drafts_dir(self, slug: str) -> Path:
         return self.project_root(slug) / "drafts"
 
+    def scene_drafts_root(self, slug: str) -> Path:
+        return self.drafts_dir(slug) / "scenes"
+
+    def scene_drafts_dir(self, slug: str, scene_id: str) -> Path:
+        return self.scene_drafts_root(slug) / scene_id
+
+    def scene_draft_manifest_path(self, slug: str, scene_id: str) -> Path:
+        return self.scene_drafts_dir(slug, scene_id) / "manifest.json"
+
+    def scene_draft_path(self, slug: str, scene_id: str, draft_no: int) -> Path:
+        return self.scene_drafts_dir(slug, scene_id) / f"draft-{draft_no:03d}.json"
+
+    def scene_context_bundle_path(self, slug: str, scene_id: str, draft_no: int) -> Path:
+        return self.scene_drafts_dir(slug, scene_id) / f"context-bundle-{draft_no:03d}.json"
+
     def memory_dir(self, slug: str) -> Path:
         return self.project_root(slug) / "memory"
+
+    def accepted_scenes_memory_path(self, slug: str) -> Path:
+        return self.memory_dir(slug) / "accepted_scenes.json"
 
     def meta_dir(self, slug: str) -> Path:
         return self.project_root(slug) / ".meta"
