@@ -78,7 +78,18 @@ class ProjectService:
         return self._to_paths_response(manifest.slug)
 
     def _record_to_manifest(self, record: dict[str, Any]) -> ProjectManifest:
-        return ProjectManifest.model_validate(record)
+        manifest_payload = {
+            "project_id": record["project_id"],
+            "slug": record["slug"],
+            "title": record["title"],
+            "genre": record["genre"],
+            "status": record["status"],
+            "target_chapters": record["target_chapters"],
+            "target_words": record["target_words"],
+            "created_at": record["created_at"],
+            "updated_at": record["updated_at"],
+        }
+        return ProjectManifest.model_validate(manifest_payload)
 
     def _to_paths_response(self, slug: str) -> ProjectPathsResponse:
         return ProjectPathsResponse(
