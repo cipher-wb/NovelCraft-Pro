@@ -1,6 +1,20 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi.testclient import TestClient
+
+
+
+def _prepare_ready_bible(client: TestClient, create_finalized_project) -> dict[str, str]:
+    project = create_finalized_project()
+    create = client.post(f"/api/projects/{project['project_id']}/bible/from-consultant")
+    assert create.status_code == 201
+    assert client.post(f"/api/projects/{project['project_id']}/characters/confirm").status_code == 200
+    assert client.post(f"/api/projects/{project['project_id']}/bible/world/confirm").status_code == 200
+    assert client.post(f"/api/projects/{project['project_id']}/bible/power-system/confirm").status_code == 200
+    assert client.post(f"/api/projects/{project['project_id']}/bible/story-bible/confirm").status_code == 200
+    return project
 
 
 
@@ -66,3 +80,43 @@ def test_character_crud_requires_reconfirm(client: TestClient, create_finalized_
     characters = client.get(f"/api/projects/{project['project_id']}/characters")
     assert characters.status_code == 200
     assert characters.json()["status"] == "draft"
+
+
+
+def test_stale_story_bible_confirm_returns_409(
+    client: TestClient, create_finalized_project, temp_roots: dict[str, Path]
+) -> None:
+    project = create_finalized_project()
+    client.post(f"/api/projects/{project['project_id']}/bible/from-consultant")
+
+    story_bible_path = temp_roots["projects_root"] / project["slug"] / "bible" / "story_bible.json"
+    import json
+
+    payload = json.loads(story_bible_path.read_text(encoding="utf-8"))
+    payload["status"] = "stale"
+    story_bible_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    response = client.post(f"/api/projects/{project['project_id']}/bible/story-bible/confirm")
+    assert response.status_code == 409
+
+
+
+def test_delete_referenced_character_returns_409(client: TestClient, create_finalized_project) -> None:
+    project = _prepare_ready_bible(client, create_finalized_project)
+    outline = client.post(f"/api/projects/{project['project_id']}/plans/volumes/generate").json()
+    volume_id = outline["volumes"][0]["volume_id"]
+    client.post(f"/api/projects/{project['project_id']}/plans/master-outline/confirm")
+    client.post(f"/api/projects/{project['project_id']}/plans/volumes/{volume_id}/confirm")
+    chapters = client.post(
+        f"/api/projects/{project['project_id']}/plans/volumes/{volume_id}/chapters/generate"
+    ).json()["items"]
+    chapter_id = chapters[0]["chapter_id"]
+    protagonist_id = client.get(f"/api/projects/{project['project_id']}/characters").json()["items"][0]["character_id"]
+    patch = client.patch(
+        f"/api/projects/{project['project_id']}/plans/chapters/{chapter_id}",
+        json={"character_ids": [protagonist_id]},
+    )
+    assert patch.status_code == 200
+
+    response = client.delete(f"/api/projects/{project['project_id']}/characters/{protagonist_id}")
+    assert response.status_code == 409

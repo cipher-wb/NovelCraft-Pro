@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pydantic import Field
+
+from pydantic import AliasChoices, Field
 
 from backend.app.domain.models.common import DomainModel
 
@@ -19,7 +20,7 @@ class OutlineVolumeRef(DomainModel):
 
 class MasterOutlineDocument(DomainModel):
     project_id: str
-    status: str = "draft"
+    outline_status: str = Field(default="draft", validation_alias=AliasChoices("outline_status", "status"))
     version: int = 1
     updated_at: datetime
     source_bible_version: int = 0

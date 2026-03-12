@@ -5,6 +5,7 @@ from typing import Any
 
 from backend.app.core.paths import AppPaths
 from backend.app.domain.models.common import utc_now
+from backend.app.domain.models.planning import ChapterPlan, MasterOutlineDocument, ScenePlan
 from backend.app.domain.models.project import (
     CharacterCard,
     CharacterDocument,
@@ -225,6 +226,8 @@ class BibleService:
         project = self._require_project(project_id)
         slug = project["slug"]
         characters = self._read_characters(slug)
+        if self._character_is_referenced(slug, character_id):
+            raise ConflictError("Character is referenced by structured story or plan data.")
         new_items = [item for item in characters.items if item.character_id != character_id]
         if len(new_items) == len(characters.items):
             raise KeyError(character_id)
@@ -347,12 +350,27 @@ class BibleService:
             or aggregate.power_system.core_rules
         )
 
+    def _character_is_referenced(self, slug: str, character_id: str) -> bool:
+        if character_id in self._read_story_bible(slug).protagonist_ids:
+            return True
+        for path in sorted(self.paths.chapters_dir(slug).glob("*.json")):
+            chapter = ChapterPlan.model_validate(self.file_repository.read_json(path))
+            if character_id in chapter.character_ids:
+                return True
+        for path in sorted(self.paths.scenes_dir(slug).glob("*.json")):
+            scene = ScenePlan.model_validate(self.file_repository.read_json(path))
+            if character_id in scene.character_ids:
+                return True
+        return False
+
     def _mark_all_plans_stale(self, slug: str) -> None:
         outline_path = self.paths.master_outline_path(slug)
         if self.file_repository.exists(outline_path):
-            payload = self.file_repository.read_json(outline_path)
-            payload["status"] = "stale"
-            self.file_repository.write_json(outline_path, payload)
+            outline = MasterOutlineDocument.model_validate(self.file_repository.read_json(outline_path))
+            outline.outline_status = "stale"
+            outline.version += 1
+            outline.updated_at = utc_now()
+            self.file_repository.write_json(outline_path, outline.model_dump(mode="json"))
         for directory in (self.paths.volumes_dir(slug), self.paths.chapters_dir(slug), self.paths.scenes_dir(slug)):
             if not directory.exists():
                 continue

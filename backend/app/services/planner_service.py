@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
 from typing import Any
 
 from backend.app.core.paths import AppPaths
@@ -52,6 +53,7 @@ class PlannerService:
         for index in range(1, volume_count + 1):
             planned_chapters = min(chapters_per_volume, remaining) if index < volume_count else max(1, remaining)
             remaining = max(0, remaining - planned_chapters)
+            self._ensure_unique_volume_no(slug, index)
             volume_id = f"volume_{index:03d}"
             file_path = self.paths.volume_plan_path(slug, index)
             if file_path.exists() and not overwrite:
@@ -79,19 +81,8 @@ class PlannerService:
                 stale_reason=None,
             )
             self._write_volume(slug, volume)
-            volume_refs.append(
-                OutlineVolumeRef(
-                    volume_id=volume.volume_id,
-                    volume_no=volume.volume_no,
-                    title=volume.title,
-                    summary=volume.summary,
-                    goal=volume.goal,
-                    planned_chapters=volume.planned_chapters,
-                    status=volume.status,
-                    file_path=f"plans/volumes/{file_path.name}",
-                )
-            )
-        outline.status = "draft"
+            volume_refs.append(self._outline_ref_from_volume(volume, file_path))
+        outline.outline_status = "draft"
         outline.version += 1
         outline.updated_at = utc_now()
         outline.source_bible_version = aggregate.story_bible.version
@@ -115,13 +106,21 @@ class PlannerService:
         project = self._require_project(project_id)
         slug = project["slug"]
         volume, path = self._find_volume(project_id, volume_id)
+        old_volume_no = volume.volume_no
         updated_data = volume.model_dump(mode="python")
         updated_data.update(payload)
+        if "volume_no" in payload:
+            self._ensure_unique_volume_no(slug, int(payload["volume_no"]), exclude_volume_id=volume_id)
         updated_data["status"] = "draft"
         updated_data["version"] = volume.version + 1
         updated = VolumePlan.model_validate(updated_data)
-        self.file_repository.write_json(path, updated.model_dump(mode="json"))
-        self._mark_outline_stale(slug)
+        new_path = self.paths.volume_plan_path(slug, updated.volume_no)
+        self._write_volume(slug, updated)
+        if new_path != path and path.exists():
+            path.unlink()
+        if updated.volume_no != old_volume_no:
+            self._propagate_volume_no_to_children(slug, volume_id, updated.volume_no)
+        self._sync_outline_volume_ref(slug, updated, mark_stale=True)
         self._mark_descendants_stale_for_volume(slug, volume_id)
         return updated
 
@@ -131,6 +130,7 @@ class PlannerService:
             raise ConflictError("Stale volume cannot be confirmed directly.")
         if volume.status == "ready":
             return volume
+        self._validate_global_volume_numbers(project_id)
         for chapter_id in volume.chapter_ids:
             self._find_chapter(project_id, chapter_id)
         volume.status = "ready"
@@ -152,6 +152,7 @@ class PlannerService:
         items: list[ChapterPlan] = []
         for index in range(1, max(1, volume.planned_chapters) + 1):
             chapter_no = max_existing + index
+            self._ensure_unique_chapter_no(slug, chapter_no)
             chapter_id = f"chapter_{chapter_no:04d}"
             path = self.paths.chapter_plan_path(slug, chapter_no)
             if path.exists() and not overwrite:
@@ -186,7 +187,7 @@ class PlannerService:
         volume.chapter_ids = chapter_ids
         volume.version += 1
         self.file_repository.write_json(volume_path, volume.model_dump(mode="json"))
-        self._mark_outline_stale(slug)
+        self._sync_outline_volume_ref(slug, volume, mark_stale=True)
         return items
 
     def list_chapters(self, project_id: str, volume_id: str) -> list[ChapterPlan]:
@@ -202,12 +203,20 @@ class PlannerService:
         project = self._require_project(project_id)
         slug = project["slug"]
         chapter, path = self._find_chapter(project_id, chapter_id)
+        old_chapter_no = chapter.chapter_no
         updated_data = chapter.model_dump(mode="python")
         updated_data.update(payload)
+        if "chapter_no" in payload:
+            self._ensure_unique_chapter_no(slug, int(payload["chapter_no"]), exclude_chapter_id=chapter_id)
         updated_data["status"] = "draft"
         updated_data["version"] = chapter.version + 1
         updated = ChapterPlan.model_validate(updated_data)
-        self.file_repository.write_json(path, updated.model_dump(mode="json"))
+        new_path = self.paths.chapter_plan_path(slug, updated.chapter_no)
+        self._write_chapter(slug, updated)
+        if new_path != path and path.exists():
+            path.unlink()
+        if updated.chapter_no != old_chapter_no:
+            self._renumber_chapter_scenes(slug, chapter.chapter_id, updated.chapter_no)
         self._mark_outline_stale(slug)
         self._mark_volume_stale(slug, chapter.volume_id)
         self._mark_descendants_stale_for_chapter(slug, chapter.chapter_id)
@@ -256,6 +265,7 @@ class PlannerService:
         items: list[ScenePlan] = []
         scene_types = ["setup", "pressure", "turn", "payoff", "transition"]
         for index in range(1, scene_count + 1):
+            self._ensure_unique_scene_no(slug, chapter.chapter_id, index)
             scene_id = f"scene_{chapter.chapter_no:04d}_{index:03d}"
             path = self.paths.scene_plan_path(slug, chapter.chapter_no, index)
             if path.exists() and not overwrite:
@@ -310,12 +320,20 @@ class PlannerService:
         project = self._require_project(project_id)
         slug = project["slug"]
         scene, path = self._find_scene(project_id, scene_id)
+        old_scene_no = scene.scene_no
         updated_data = scene.model_dump(mode="python")
         updated_data.update(payload)
+        if "scene_no" in payload:
+            self._ensure_unique_scene_no(slug, scene.chapter_id, int(payload["scene_no"]), exclude_scene_id=scene_id)
         updated_data["status"] = "draft"
         updated_data["version"] = scene.version + 1
         updated = ScenePlan.model_validate(updated_data)
-        self.file_repository.write_json(path, updated.model_dump(mode="json"))
+        new_path = self.paths.scene_plan_path(slug, updated.chapter_no, updated.scene_no)
+        self._write_scene(slug, updated)
+        if new_path != path and path.exists():
+            path.unlink()
+        if updated.scene_no != old_scene_no:
+            self._validate_scene_numbers(project_id, scene.chapter_id)
         self._mark_outline_stale(slug)
         self._mark_volume_stale(slug, scene.volume_id)
         self._mark_chapter_stale(slug, scene.chapter_id)
@@ -344,9 +362,9 @@ class PlannerService:
         project = self._require_project(project_id)
         slug = project["slug"]
         outline = self._read_outline(slug)
-        if outline.status == "stale":
+        if outline.outline_status == "stale":
             raise ConflictError("Stale master outline cannot be confirmed directly.")
-        if outline.status == "ready":
+        if outline.outline_status == "ready":
             return outline
         for ref in outline.volumes:
             path = self.paths.project_root(slug) / ref.file_path
@@ -355,14 +373,63 @@ class PlannerService:
             volume = VolumePlan.model_validate(self.file_repository.read_json(path))
             if volume.volume_id != ref.volume_id or volume.volume_no != ref.volume_no:
                 raise ValueError("Volume reference does not match target file.")
-        outline.status = "ready"
+        outline.outline_status = "ready"
         outline.version += 1
         self._write_outline(slug, outline)
         return outline
 
+    def _outline_ref_from_volume(self, volume: VolumePlan, file_path: Path) -> OutlineVolumeRef:
+        return OutlineVolumeRef(
+            volume_id=volume.volume_id,
+            volume_no=volume.volume_no,
+            title=volume.title,
+            summary=volume.summary,
+            goal=volume.goal,
+            planned_chapters=volume.planned_chapters,
+            status=volume.status,
+            file_path=f"plans/volumes/{file_path.name}",
+        )
+
+    def _sync_outline_volume_ref(self, slug: str, volume: VolumePlan, *, mark_stale: bool) -> None:
+        outline = self._read_outline(slug)
+        changed = False
+        for index, ref in enumerate(outline.volumes):
+            if ref.volume_id == volume.volume_id:
+                outline.volumes[index] = self._outline_ref_from_volume(volume, self.paths.volume_plan_path(slug, volume.volume_no))
+                changed = True
+                break
+        if changed or mark_stale:
+            if mark_stale:
+                outline.outline_status = "stale"
+                outline.version += 1
+            self._write_outline(slug, outline)
+
+    def _propagate_volume_no_to_children(self, slug: str, volume_id: str, volume_no: int) -> None:
+        for path in sorted(self.paths.chapters_dir(slug).glob("*.json")):
+            chapter = ChapterPlan.model_validate(self.file_repository.read_json(path))
+            if chapter.volume_id != volume_id:
+                continue
+            chapter.volume_no = volume_no
+            chapter.version += 1
+            self.file_repository.write_json(path, chapter.model_dump(mode="json"))
+
+    def _renumber_chapter_scenes(self, slug: str, chapter_id: str, chapter_no: int) -> None:
+        scene_records: list[tuple[ScenePlan, Path]] = []
+        for path in sorted(self.paths.scenes_dir(slug).glob("*.json")):
+            scene = ScenePlan.model_validate(self.file_repository.read_json(path))
+            if scene.chapter_id == chapter_id:
+                scene_records.append((scene, path))
+        for scene, path in scene_records:
+            scene.chapter_no = chapter_no
+            scene.version += 1
+            new_path = self.paths.scene_plan_path(slug, chapter_no, scene.scene_no)
+            self.file_repository.write_json(new_path, scene.model_dump(mode="json"))
+            if new_path != path and path.exists():
+                path.unlink()
+
     def _mark_outline_stale(self, slug: str) -> None:
         outline = self._read_outline(slug)
-        outline.status = "stale"
+        outline.outline_status = "stale"
         outline.version += 1
         self._write_outline(slug, outline)
 
@@ -375,6 +442,7 @@ class PlannerService:
         volume.version += 1
         volume.stale_reason = "upstream_changed"
         self.file_repository.write_json(path, volume.model_dump(mode="json"))
+        self._sync_outline_volume_ref(slug, volume, mark_stale=False)
 
     def _mark_chapter_stale(self, slug: str, chapter_id: str) -> None:
         try:
@@ -414,6 +482,35 @@ class PlannerService:
             payload = self.file_repository.read_json(path)
             max_value = max(max_value, int(payload["chapter_no"]))
         return max_value
+
+    def _ensure_unique_volume_no(self, slug: str, volume_no: int, exclude_volume_id: str | None = None) -> None:
+        for path in sorted(self.paths.volumes_dir(slug).glob("*.json")):
+            volume = VolumePlan.model_validate(self.file_repository.read_json(path))
+            if volume.volume_id == exclude_volume_id:
+                continue
+            if volume.volume_no == volume_no:
+                raise ValueError("Volume numbers must be unique within the project.")
+
+    def _ensure_unique_chapter_no(self, slug: str, chapter_no: int, exclude_chapter_id: str | None = None) -> None:
+        for path in sorted(self.paths.chapters_dir(slug).glob("*.json")):
+            chapter = ChapterPlan.model_validate(self.file_repository.read_json(path))
+            if chapter.chapter_id == exclude_chapter_id:
+                continue
+            if chapter.chapter_no == chapter_no:
+                raise ValueError("Chapter numbers must be unique within the project.")
+
+    def _ensure_unique_scene_no(self, slug: str, chapter_id: str, scene_no: int, exclude_scene_id: str | None = None) -> None:
+        for path in sorted(self.paths.scenes_dir(slug).glob("*.json")):
+            scene = ScenePlan.model_validate(self.file_repository.read_json(path))
+            if scene.scene_id == exclude_scene_id:
+                continue
+            if scene.chapter_id == chapter_id and scene.scene_no == scene_no:
+                raise ValueError("Scene numbers must be unique within the chapter.")
+
+    def _validate_global_volume_numbers(self, project_id: str) -> None:
+        values = [volume.volume_no for volume in self.list_volumes(project_id)]
+        if len(values) != len(set(values)):
+            raise ValueError("Volume numbers must be unique within the project.")
 
     def _validate_global_chapter_numbers(self, project_id: str) -> None:
         values = [chapter.chapter_no for chapter in self._all_chapters(project_id)]
@@ -455,29 +552,29 @@ class PlannerService:
     def _write_scene(self, slug: str, scene: ScenePlan) -> None:
         self.file_repository.write_json(self.paths.scene_plan_path(slug, scene.chapter_no, scene.scene_no), scene.model_dump(mode="json"))
 
-    def _find_volume(self, project_id: str, volume_id: str) -> tuple[VolumePlan, Any]:
+    def _find_volume(self, project_id: str, volume_id: str) -> tuple[VolumePlan, Path]:
         project = self._require_project(project_id)
         return self._find_volume_by_slug(project["slug"], volume_id)
 
-    def _find_volume_by_slug(self, slug: str, volume_id: str) -> tuple[VolumePlan, Any]:
+    def _find_volume_by_slug(self, slug: str, volume_id: str) -> tuple[VolumePlan, Path]:
         for path in sorted(self.paths.volumes_dir(slug).glob("*.json")):
             volume = VolumePlan.model_validate(self.file_repository.read_json(path))
             if volume.volume_id == volume_id:
                 return volume, path
         raise KeyError(volume_id)
 
-    def _find_chapter(self, project_id: str, chapter_id: str) -> tuple[ChapterPlan, Any]:
+    def _find_chapter(self, project_id: str, chapter_id: str) -> tuple[ChapterPlan, Path]:
         project = self._require_project(project_id)
         return self._find_chapter_by_slug(project["slug"], chapter_id)
 
-    def _find_chapter_by_slug(self, slug: str, chapter_id: str) -> tuple[ChapterPlan, Any]:
+    def _find_chapter_by_slug(self, slug: str, chapter_id: str) -> tuple[ChapterPlan, Path]:
         for path in sorted(self.paths.chapters_dir(slug).glob("*.json")):
             chapter = ChapterPlan.model_validate(self.file_repository.read_json(path))
             if chapter.chapter_id == chapter_id:
                 return chapter, path
         raise KeyError(chapter_id)
 
-    def _find_scene(self, project_id: str, scene_id: str) -> tuple[ScenePlan, Any]:
+    def _find_scene(self, project_id: str, scene_id: str) -> tuple[ScenePlan, Path]:
         project = self._require_project(project_id)
         slug = project["slug"]
         for path in sorted(self.paths.scenes_dir(slug).glob("*.json")):

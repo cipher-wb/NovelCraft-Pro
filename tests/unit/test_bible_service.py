@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 
 
 def _build_context(workspace_tmp_dir: Path):
@@ -63,7 +64,6 @@ def _build_context(workspace_tmp_dir: Path):
     return manifest, paths, file_repository, bible_service
 
 
-
 def test_initialize_from_consultant_builds_bible_documents(workspace_tmp_dir: Path) -> None:
     manifest, paths, file_repository, bible_service = _build_context(workspace_tmp_dir)
 
@@ -77,7 +77,6 @@ def test_initialize_from_consultant_builds_bible_documents(workspace_tmp_dir: Pa
     assert aggregate.power_system.status == "draft"
     assert file_repository.exists(paths.story_bible_path(manifest.slug))
     assert file_repository.exists(paths.characters_path(manifest.slug))
-
 
 
 def test_character_mutation_marks_character_document_draft(workspace_tmp_dir: Path) -> None:
@@ -99,7 +98,6 @@ def test_character_mutation_marks_character_document_draft(workspace_tmp_dir: Pa
     assert aggregate.characters.status == "draft"
 
 
-
 def test_update_story_bible_marks_existing_master_outline_stale(workspace_tmp_dir: Path) -> None:
     manifest, paths, file_repository, bible_service = _build_context(workspace_tmp_dir)
     bible_service.initialize_from_consultant(manifest.project_id)
@@ -117,27 +115,94 @@ def test_update_story_bible_marks_existing_master_outline_stale(workspace_tmp_di
         },
     )
 
-    bible_service.update_story_bible(
-        manifest.project_id,
-        {"story_promise": "新的故事承诺"},
-        partial=True,
-    )
+    bible_service.update_story_bible(manifest.project_id, {"story_promise": "新的故事承诺"}, partial=True)
 
     outline_payload = file_repository.read_json(paths.master_outline_path(manifest.slug))
-    assert outline_payload["status"] == "stale"
-
+    assert outline_payload["outline_status"] == "stale"
+    assert "status" not in outline_payload
 
 
 def test_confirm_story_bible_requires_featured_references(workspace_tmp_dir: Path) -> None:
     manifest, _, _, bible_service = _build_context(workspace_tmp_dir)
     bible_service.initialize_from_consultant(manifest.project_id)
-    bible_service.update_story_bible(
-        manifest.project_id,
-        {"featured_faction_ids": ["missing_faction"]},
-        partial=True,
-    )
-
-    import pytest
+    bible_service.update_story_bible(manifest.project_id, {"featured_faction_ids": ["missing_faction"]}, partial=True)
 
     with pytest.raises(ValueError):
         bible_service.confirm_story_bible(manifest.project_id)
+
+
+def test_confirm_rejects_stale_bible_documents(workspace_tmp_dir: Path) -> None:
+    from backend.app.services.exceptions import ConflictError
+
+    manifest, paths, file_repository, bible_service = _build_context(workspace_tmp_dir)
+    bible_service.initialize_from_consultant(manifest.project_id)
+
+    cases = [
+        (paths.story_bible_path(manifest.slug), bible_service.confirm_story_bible),
+        (paths.world_path(manifest.slug), bible_service.confirm_world),
+        (paths.power_system_path(manifest.slug), bible_service.confirm_power_system),
+        (paths.characters_path(manifest.slug), bible_service.confirm_characters),
+    ]
+    for path, confirm in cases:
+        payload = file_repository.read_json(path)
+        payload["status"] = "stale"
+        file_repository.write_json(path, payload)
+        with pytest.raises(ConflictError):
+            confirm(manifest.project_id)
+        payload["status"] = "draft"
+        file_repository.write_json(path, payload)
+
+
+def test_delete_character_returns_conflict_when_referenced_by_story_bible(workspace_tmp_dir: Path) -> None:
+    from backend.app.services.exceptions import ConflictError
+
+    manifest, _, _, bible_service = _build_context(workspace_tmp_dir)
+    aggregate = bible_service.initialize_from_consultant(manifest.project_id)
+    protagonist_id = aggregate.characters.items[0].character_id
+
+    with pytest.raises(ConflictError):
+        bible_service.delete_character(manifest.project_id, protagonist_id)
+
+
+def test_delete_character_returns_conflict_when_referenced_by_plans(workspace_tmp_dir: Path) -> None:
+    from backend.app.domain.models.planning import ChapterPlan, ScenePlan
+    from backend.app.services.exceptions import ConflictError
+
+    manifest, paths, file_repository, bible_service = _build_context(workspace_tmp_dir)
+    bible_service.initialize_from_consultant(manifest.project_id)
+    supporting = bible_service.create_character(
+        manifest.project_id,
+        {
+            "name": "配角",
+            "role": "support",
+            "traits": ["谨慎"],
+        },
+    )
+    file_repository.write_json(
+        paths.chapter_plan_path(manifest.slug, 1),
+        ChapterPlan(
+            chapter_id="chapter_0001",
+            project_id=manifest.project_id,
+            volume_id="volume_001",
+            volume_no=1,
+            chapter_no=1,
+            title="第一章",
+            character_ids=[supporting.character_id],
+        ).model_dump(mode="json"),
+    )
+    file_repository.write_json(
+        paths.scene_plan_path(manifest.slug, 1, 1),
+        ScenePlan(
+            scene_id="scene_0001_001",
+            project_id=manifest.project_id,
+            volume_id="volume_001",
+            chapter_id="chapter_0001",
+            chapter_no=1,
+            scene_no=1,
+            title="第一场",
+            character_ids=[supporting.character_id],
+        ).model_dump(mode="json"),
+    )
+
+    with pytest.raises(ConflictError):
+        bible_service.delete_character(manifest.project_id, supporting.character_id)
