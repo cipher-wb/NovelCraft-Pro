@@ -5,7 +5,8 @@ from typing import Any
 
 from backend.app.core.paths import AppPaths
 from backend.app.domain.models.common import utc_now
-from backend.app.domain.models.project import StoryBible
+from backend.app.domain.models.planning import MasterOutlineDocument
+from backend.app.domain.models.project import CharacterDocument, PowerSystemDocument, StoryBible, WorldDocument
 from backend.app.repositories.file_repository import FileRepository
 
 
@@ -31,9 +32,9 @@ class BootstrapService:
             consultant_sessions_dir,
             bible_dir,
             plans_dir,
-            plans_dir / "volumes",
-            plans_dir / "chapters",
-            plans_dir / "scenes",
+            self.paths.volumes_dir(slug),
+            self.paths.chapters_dir(slug),
+            self.paths.scenes_dir(slug),
             drafts_dir,
             drafts_dir / "chapters",
             drafts_dir / "scenes",
@@ -46,17 +47,32 @@ class BootstrapService:
             self.file_repository.ensure_dir(directory)
 
         self.file_repository.write_json(self.paths.project_manifest_path(slug), manifest_payload)
+        now = utc_now()
         empty_bible = StoryBible(
             bible_id=f"bible_{manifest_payload['project_id']}",
             project_id=manifest_payload["project_id"],
-            updated_at=utc_now(),
+            title=manifest_payload["title"],
+            genre=manifest_payload["genre"],
+            updated_at=now,
         )
-        self.file_repository.write_json(bible_dir / "story_bible.json", empty_bible.model_dump(mode="json"))
-        self.file_repository.write_json(bible_dir / "characters.json", [])
-        self.file_repository.write_json(bible_dir / "world.json", {"factions": [], "locations": []})
-        self.file_repository.write_json(bible_dir / "power_system.json", {})
+        self.file_repository.write_json(self.paths.story_bible_path(slug), empty_bible.model_dump(mode="json"))
+        self.file_repository.write_json(
+            self.paths.characters_path(slug),
+            CharacterDocument(project_id=manifest_payload["project_id"], updated_at=now).model_dump(mode="json"),
+        )
+        self.file_repository.write_json(
+            self.paths.world_path(slug),
+            WorldDocument(project_id=manifest_payload["project_id"], updated_at=now).model_dump(mode="json"),
+        )
+        self.file_repository.write_json(
+            self.paths.power_system_path(slug),
+            PowerSystemDocument(project_id=manifest_payload["project_id"], updated_at=now).model_dump(mode="json"),
+        )
         self.file_repository.write_json(bible_dir / "voice_profile.json", {})
-        self.file_repository.write_json(plans_dir / "master_outline.json", {"volumes": []})
+        self.file_repository.write_json(
+            self.paths.master_outline_path(slug),
+            MasterOutlineDocument(project_id=manifest_payload["project_id"], updated_at=now).model_dump(mode="json"),
+        )
         self.file_repository.write_json(memory_dir / "timeline.json", [])
         self.file_repository.write_json(memory_dir / "foreshadows.json", [])
         self.file_repository.write_json(memory_dir / "payoffs.json", [])
