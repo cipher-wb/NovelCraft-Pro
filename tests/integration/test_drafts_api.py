@@ -67,6 +67,28 @@ def test_accept_reject_on_non_draft_returns_409(client: TestClient, build_ready_
     assert reject_after_accept.status_code == 409
 
 
+def test_generate_uses_retrieved_memory_from_previous_accepted_scene(client: TestClient, build_ready_scene_project) -> None:
+    project = build_ready_scene_project(confirm_scene=True)
+    second_scene_id = project["scene_ids"][1]
+    assert client.post(f"/api/projects/{project['project_id']}/plans/scenes/{second_scene_id}/confirm").status_code == 200
+
+    first_generated = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{project['scene_id']}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert first_generated.status_code == 201
+    first_draft_id = first_generated.json()["draft"]["draft_id"]
+    assert client.post(f"/api/projects/{project['project_id']}/drafts/{first_draft_id}/accept").status_code == 200
+
+    second_generated = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{second_scene_id}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert second_generated.status_code == 201
+    retrieved = second_generated.json()["context_bundle"]["retrieved_memory"]
+    assert retrieved["recent_scene_summaries"][0]["scene_id"] == project["scene_id"]
+
+
 def test_scene_studio_page_is_available(client: TestClient) -> None:
     response = client.get("/studio/scene.html")
     assert response.status_code == 200

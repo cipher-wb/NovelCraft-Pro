@@ -21,6 +21,7 @@ from backend.app.domain.models.writing import (
 from backend.app.repositories.file_repository import FileRepository
 from backend.app.services.bible_service import BibleService
 from backend.app.services.planner_service import PlannerService
+from backend.app.services.retrieval_service import RetrievalService
 
 
 class ContextBundleService:
@@ -30,15 +31,16 @@ class ContextBundleService:
         file_repository: FileRepository,
         bible_service: BibleService,
         planner_service: PlannerService,
+        retrieval_service: RetrievalService,
     ) -> None:
         self.paths = paths
         self.file_repository = file_repository
         self.bible_service = bible_service
         self.planner_service = planner_service
+        self.retrieval_service = retrieval_service
 
     def build(self, project_id: str, scene_id: str) -> ContextBundle:
         project = self.bible_service._require_project(project_id)
-        slug = project["slug"]
         aggregate = self.bible_service.get_bible_aggregate(project_id)
         scene = self.planner_service.get_scene(project_id, scene_id)
         chapter = self.planner_service.get_chapter(project_id, scene.chapter_id)
@@ -47,7 +49,8 @@ class ContextBundleService:
         scene_character_ids = set(scene.character_ids)
         faction_ids = set(chapter.faction_ids)
         location = next((item for item in aggregate.world.locations if item.location_id == scene.location_id), None)
-        previous_summary = self._find_previous_accepted_summary(slug, chapter.chapter_id, scene.scene_no)
+        retrieved_memory = self.retrieval_service.retrieve_for_scene(project_id, scene_id)
+        previous_summary = retrieved_memory.recent_scene_summaries[0] if retrieved_memory.recent_scene_summaries else None
 
         return ContextBundle(
             context_bundle_id=f"ctx_{uuid.uuid4().hex[:12]}",
@@ -125,25 +128,11 @@ class ContextBundleService:
                 upgrade_rhythm_guideline=aggregate.power_system.upgrade_rhythm_guideline,
             ),
             continuity=ContinuityBrief(
-                previous_accepted_scene_id=previous_summary[0],
-                previous_accepted_scene_summary=previous_summary[1],
+                previous_accepted_scene_id=previous_summary.scene_id if previous_summary else None,
+                previous_accepted_scene_summary=previous_summary.summary if previous_summary else "",
             ),
+            retrieved_memory=retrieved_memory,
         )
-
-    def _find_previous_accepted_summary(self, slug: str, chapter_id: str, scene_no: int) -> tuple[str | None, str]:
-        path = self.paths.accepted_scenes_memory_path(slug)
-        if not self.file_repository.exists(path):
-            return None, ""
-        payload = self.file_repository.read_json(path)
-        candidates = [
-            item
-            for item in payload.get("items", [])
-            if item["chapter_id"] == chapter_id and int(item["scene_no"]) < scene_no
-        ]
-        if not candidates:
-            return None, ""
-        previous = sorted(candidates, key=lambda item: (int(item["scene_no"]), item["draft_id"]))[-1]
-        return previous["scene_id"], previous["summary"]
 
     def _to_character_brief(self, item: CharacterCard, in_scene_ids: set[str]) -> CharacterBrief:
         return CharacterBrief(

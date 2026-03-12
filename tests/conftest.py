@@ -94,7 +94,7 @@ def create_finalized_project(client: TestClient):
 
 @pytest.fixture()
 def build_ready_scene_project(client: TestClient, create_finalized_project):
-    def _build(*, confirm_scene: bool = True) -> dict[str, str]:
+    def _build(*, confirm_scene: bool = True) -> dict[str, object]:
         project = create_finalized_project()
         project_id = project["project_id"]
 
@@ -118,7 +118,8 @@ def build_ready_scene_project(client: TestClient, create_finalized_project):
 
         scenes = client.post(f"/api/projects/{project_id}/plans/chapters/{chapter_id}/scenes/generate")
         assert scenes.status_code == 201
-        scene_id = scenes.json()["items"][0]["scene_id"]
+        scene_items = scenes.json()["items"]
+        scene_id = scene_items[0]["scene_id"]
         if confirm_scene:
             assert client.post(f"/api/projects/{project_id}/plans/scenes/{scene_id}/confirm").status_code == 200
 
@@ -128,6 +129,7 @@ def build_ready_scene_project(client: TestClient, create_finalized_project):
             "volume_id": volume_id,
             "chapter_id": chapter_id,
             "scene_id": scene_id,
+            "scene_ids": [item["scene_id"] for item in scene_items],
         }
 
     return _build

@@ -6,7 +6,6 @@ from typing import Any
 
 from backend.app.core.paths import AppPaths
 from backend.app.domain.models.common import DraftStatus, utc_now
-from backend.app.domain.models.planning import ScenePlan
 from backend.app.domain.models.writing import ContextBundle, SceneDraft, SceneDraftManifest, SceneDraftManifestItem
 from backend.app.infra.llm_gateway import GenerateRequest, MockLLMGateway
 from backend.app.repositories.file_repository import FileRepository
@@ -14,7 +13,7 @@ from backend.app.repositories.sqlite_repository import SQLiteRepository
 from backend.app.services.bible_service import BibleService
 from backend.app.services.context_bundle_service import ContextBundleService
 from backend.app.services.exceptions import ConflictError
-from backend.app.services.memory_stub_service import MemoryStubService
+from backend.app.services.memory_service import MemoryService
 from backend.app.services.planner_service import PlannerService
 
 
@@ -27,7 +26,7 @@ class SceneDraftService:
         bible_service: BibleService,
         planner_service: PlannerService,
         context_bundle_service: ContextBundleService,
-        memory_stub_service: MemoryStubService,
+        memory_service: MemoryService,
         llm_gateway,
     ) -> None:
         self.paths = paths
@@ -36,7 +35,7 @@ class SceneDraftService:
         self.bible_service = bible_service
         self.planner_service = planner_service
         self.context_bundle_service = context_bundle_service
-        self.memory_stub_service = memory_stub_service
+        self.memory_service = memory_service
         self.llm_gateway = llm_gateway
 
     def generate(self, project_id: str, scene_id: str, mode: str) -> SceneDraft:
@@ -186,8 +185,8 @@ class SceneDraftService:
         draft.status = DraftStatus.accepted.value
         draft.accepted_at = now
         draft.updated_at = now
-        memory_item = self.memory_stub_service.ingest_accepted_scene(slug, draft, scene)
-        draft.memory_stub_record_id = memory_item.memory_id
+        ingest_result = self.memory_service.ingest_accepted_draft(slug, draft, scene, chapter, volume)
+        draft.memory_stub_record_id = ingest_result.accepted_scene_item.memory_id
         self._write_draft(slug, draft)
 
         manifest.items = [self._manifest_item_from_draft(self.get_draft(project_id, item.draft_id)) for item in manifest.items]
@@ -299,6 +298,7 @@ class SceneDraftService:
                 "location_brief": bundle.location_brief.model_dump(mode="json") if bundle.location_brief else None,
                 "power_brief": bundle.power_brief.model_dump(mode="json") if bundle.power_brief else None,
                 "continuity": bundle.continuity.model_dump(mode="json"),
+                "retrieved_memory": bundle.retrieved_memory.model_dump(mode="json"),
             },
             ensure_ascii=False,
         )

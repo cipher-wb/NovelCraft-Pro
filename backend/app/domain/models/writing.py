@@ -111,6 +111,124 @@ class ContextSourceVersions(DomainModel):
     scene_version: int = 0
 
 
+class AcceptedSceneMemoryItem(DomainModel):
+    memory_id: str
+    scene_id: str
+    chapter_id: str
+    volume_id: str
+    draft_id: str
+    chapter_no: int
+    scene_no: int
+    volume_no: int = 0
+    chapter_title: str = ""
+    scene_title: str
+    scene_type: str = ""
+    summary: str = ""
+    summary_source: str = "draft_summary"
+    scene_goal: str = ""
+    scene_outcome: str = ""
+    character_ids: list[str] = Field(default_factory=list)
+    faction_ids: list[str] = Field(default_factory=list)
+    location_id: str | None = None
+    time_anchor: str = ""
+    accepted_at: datetime
+    source_scene_version: int = 0
+
+
+class AcceptedSceneMemoryDocument(DomainModel):
+    project_id: str
+    version: int = 1
+    updated_at: datetime
+    items: list[AcceptedSceneMemoryItem] = Field(default_factory=list)
+
+
+class ChapterSummaryMemoryItem(DomainModel):
+    chapter_id: str
+    volume_id: str
+    chapter_no: int
+    chapter_title: str = ""
+    accepted_scene_ids: list[str] = Field(default_factory=list)
+    accepted_scene_count: int = 0
+    summary: str = ""
+    summary_source: str = "accepted_scene_rollup"
+    key_turns: list[str] = Field(default_factory=list)
+    last_scene_id: str | None = None
+    last_scene_no: int | None = None
+    updated_from_draft_id: str | None = None
+    updated_at: datetime
+
+
+class ChapterSummariesMemoryDocument(DomainModel):
+    project_id: str
+    version: int = 1
+    updated_at: datetime
+    items: list[ChapterSummaryMemoryItem] = Field(default_factory=list)
+
+
+class CharacterStateSummaryMemoryItem(DomainModel):
+    character_id: str
+    character_name: str = ""
+    last_scene_id: str
+    last_chapter_id: str
+    last_volume_id: str
+    last_chapter_no: int
+    last_scene_no: int
+    latest_location_id: str | None = None
+    latest_time_anchor: str = ""
+    latest_scene_summary: str = ""
+    last_scene_goal: str = ""
+    last_scene_outcome: str = ""
+    related_character_ids: list[str] = Field(default_factory=list)
+    source_draft_id: str
+    updated_at: datetime
+
+
+class CharacterStateSummariesMemoryDocument(DomainModel):
+    project_id: str
+    version: int = 1
+    updated_at: datetime
+    items: list[CharacterStateSummaryMemoryItem] = Field(default_factory=list)
+
+
+class RetrievedSceneSummary(DomainModel):
+    scene_id: str
+    chapter_id: str
+    scene_no: int
+    scene_title: str = ""
+    summary: str = ""
+    scene_goal: str = ""
+    scene_outcome: str = ""
+
+
+class RetrievedPreviousChapterSummary(DomainModel):
+    chapter_id: str
+    chapter_no: int
+    chapter_title: str = ""
+    summary: str = ""
+    key_turns: list[str] = Field(default_factory=list)
+
+
+class RetrievedCharacterStateBrief(DomainModel):
+    character_id: str
+    character_name: str = ""
+    last_scene_id: str
+    last_chapter_no: int
+    last_scene_no: int
+    latest_location_id: str | None = None
+    latest_scene_summary: str = ""
+    last_scene_goal: str = ""
+    last_scene_outcome: str = ""
+    related_character_ids: list[str] = Field(default_factory=list)
+
+
+class RetrievedMemoryContext(DomainModel):
+    strategy: str = "deterministic_v1"
+    warnings: list[str] = Field(default_factory=list)
+    recent_scene_summaries: list[RetrievedSceneSummary] = Field(default_factory=list)
+    previous_chapter_summary: RetrievedPreviousChapterSummary | None = None
+    character_state_briefs: list[RetrievedCharacterStateBrief] = Field(default_factory=list)
+
+
 class ContextBundle(DomainModel):
     context_bundle_id: str
     project_id: str
@@ -128,6 +246,7 @@ class ContextBundle(DomainModel):
     location_brief: LocationBrief | None = None
     power_brief: PowerBrief | None = None
     continuity: ContinuityBrief = Field(default_factory=ContinuityBrief)
+    retrieved_memory: RetrievedMemoryContext = Field(default_factory=RetrievedMemoryContext)
 
 
 class SceneDraft(DomainModel):
@@ -187,30 +306,10 @@ class SceneDraftManifest(DomainModel):
     items: list[SceneDraftManifestItem] = Field(default_factory=list)
 
 
-class AcceptedSceneMemoryItem(DomainModel):
-    memory_id: str
-    scene_id: str
-    chapter_id: str
-    volume_id: str
-    draft_id: str
-    chapter_no: int
-    scene_no: int
-    scene_title: str
-    scene_type: str = ""
-    summary: str = ""
-    summary_source: str = "draft_summary"
-    character_ids: list[str] = Field(default_factory=list)
-    location_id: str | None = None
-    time_anchor: str = ""
-    accepted_at: datetime
-    source_scene_version: int = 0
-
-
-class AcceptedSceneMemoryDocument(DomainModel):
-    project_id: str
-    version: int = 1
-    updated_at: datetime
-    items: list[AcceptedSceneMemoryItem] = Field(default_factory=list)
+class MemoryIngestResult(DomainModel):
+    accepted_scene_item: AcceptedSceneMemoryItem
+    chapter_summary_item: ChapterSummaryMemoryItem | None = None
+    character_state_count: int = 0
 
 
 class CharacterStateSnapshot(DomainModel):

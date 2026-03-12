@@ -106,6 +106,12 @@ class AppPaths:
     def accepted_scenes_memory_path(self, slug: str) -> Path:
         return self.memory_dir(slug) / "accepted_scenes.json"
 
+    def chapter_summaries_memory_path(self, slug: str) -> Path:
+        return self.memory_dir(slug) / "chapter_summaries.json"
+
+    def character_state_summaries_memory_path(self, slug: str) -> Path:
+        return self.memory_dir(slug) / "character_state_summaries.json"
+
     def meta_dir(self, slug: str) -> Path:
         return self.project_root(slug) / ".meta"
 

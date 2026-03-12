@@ -10,9 +10,10 @@ from backend.app.services.bible_service import BibleService
 from backend.app.services.bootstrap_service import BootstrapService
 from backend.app.services.consultant_service import ConsultantService
 from backend.app.services.context_bundle_service import ContextBundleService
-from backend.app.services.memory_stub_service import MemoryStubService
+from backend.app.services.memory_service import MemoryService
 from backend.app.services.planner_service import PlannerService
 from backend.app.services.project_service import ProjectService
+from backend.app.services.retrieval_service import RetrievalService
 from backend.app.services.scene_draft_service import SceneDraftService
 
 
@@ -84,17 +85,27 @@ def get_planner_service(
     return PlannerService(paths, file_repository, sqlite_repository, bible_service)
 
 
+def get_memory_service(paths: AppPaths, file_repository: FileRepository, bible_service: BibleService) -> MemoryService:
+    return MemoryService(paths, file_repository, bible_service)
+
+
+def get_retrieval_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    planner_service: PlannerService,
+) -> RetrievalService:
+    return RetrievalService(paths, file_repository, sqlite_repository, planner_service)
+
+
 def get_context_bundle_service(
     paths: AppPaths,
     file_repository: FileRepository,
     bible_service: BibleService,
     planner_service: PlannerService,
+    retrieval_service: RetrievalService,
 ) -> ContextBundleService:
-    return ContextBundleService(paths, file_repository, bible_service, planner_service)
-
-
-def get_memory_stub_service(paths: AppPaths, file_repository: FileRepository) -> MemoryStubService:
-    return MemoryStubService(paths, file_repository)
+    return ContextBundleService(paths, file_repository, bible_service, planner_service, retrieval_service)
 
 
 def get_scene_draft_service(
@@ -104,7 +115,7 @@ def get_scene_draft_service(
     bible_service: BibleService,
     planner_service: PlannerService,
     context_bundle_service: ContextBundleService,
-    memory_stub_service: MemoryStubService,
+    memory_service: MemoryService,
     llm_gateway,
 ) -> SceneDraftService:
     return SceneDraftService(
@@ -114,6 +125,6 @@ def get_scene_draft_service(
         bible_service,
         planner_service,
         context_bundle_service,
-        memory_stub_service,
+        memory_service,
         llm_gateway,
     )

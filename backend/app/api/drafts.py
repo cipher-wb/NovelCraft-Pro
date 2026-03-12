@@ -9,8 +9,9 @@ from backend.app.core.dependencies import (
     get_context_bundle_service,
     get_file_repository,
     get_llm_gateway,
-    get_memory_stub_service,
+    get_memory_service,
     get_planner_service,
+    get_retrieval_service,
     get_scene_draft_service,
     get_sqlite_repository,
 )
@@ -27,8 +28,9 @@ def _get_service(settings):
     sqlite_repository = get_sqlite_repository(paths)
     bible_service = get_bible_service(paths, file_repository, sqlite_repository)
     planner_service = get_planner_service(paths, file_repository, sqlite_repository, bible_service)
-    context_bundle_service = get_context_bundle_service(paths, file_repository, bible_service, planner_service)
-    memory_stub_service = get_memory_stub_service(paths, file_repository)
+    retrieval_service = get_retrieval_service(paths, file_repository, sqlite_repository, planner_service)
+    context_bundle_service = get_context_bundle_service(paths, file_repository, bible_service, planner_service, retrieval_service)
+    memory_service = get_memory_service(paths, file_repository, bible_service)
     llm_gateway = get_llm_gateway(settings)
     return get_scene_draft_service(
         paths,
@@ -37,7 +39,7 @@ def _get_service(settings):
         bible_service,
         planner_service,
         context_bundle_service,
-        memory_stub_service,
+        memory_service,
         llm_gateway,
     )
 
