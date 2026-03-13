@@ -176,3 +176,190 @@ def test_retrieval_service_degrades_gracefully_when_memory_documents_are_missing
     assert retrieved.character_state_briefs == []
     assert retrieved.previous_chapter_summary is None
     assert retrieved.warnings
+
+
+def test_retrieval_service_injects_previous_volume_summary_only_for_first_two_canonical_planned_chapters(service_container) -> None:
+    from backend.app.domain.models.writing import VolumeSummariesMemoryDocument
+    from backend.app.schemas.project import CreateProjectRequest
+    from backend.app.services.retrieval_service import RetrievalService
+
+    container = service_container
+    manifest, _ = container["project_service"].create_project(
+        CreateProjectRequest(
+            title="跨卷检索测试书",
+            genre="都市异能",
+            target_chapters=6,
+            target_words=600_000,
+        )
+    )
+    paths = container["paths"]
+    file_repository = container["file_repository"]
+    planner_service = container["planner_service"]
+    bible_service = container["bible_service"]
+    sqlite_repository = container["sqlite_repository"]
+
+    file_repository.write_json(
+        paths.consultant_dossier_path(manifest.slug),
+        {
+            "dossier_id": "dossier_cross_volume",
+            "project_id": manifest.project_id,
+            "high_concept": "跨卷推进测试",
+            "subgenres": ["升级流"],
+            "target_audience": ["男频爽文读者"],
+            "selling_points": ["升级", "打脸"],
+            "protagonist_seed": {"summary": "主角"},
+            "golden_finger": {"summary": "系统"},
+            "core_conflicts": ["势力冲突"],
+            "chapter_1_30_beats": [{"range": "1-10", "focus": "开局"}],
+            "qa_transcript": [],
+            "version": 1,
+        },
+    )
+
+    bible_service.initialize_from_consultant(manifest.project_id)
+    bible_service.confirm_characters(manifest.project_id)
+    bible_service.confirm_world(manifest.project_id)
+    bible_service.confirm_power_system(manifest.project_id)
+    bible_service.confirm_story_bible(manifest.project_id)
+
+    outline = planner_service.generate_volumes(manifest.project_id, volume_count_hint=2, chapters_per_volume_hint=3)
+    volume_one_id = outline.volumes[0].volume_id
+    volume_two_id = outline.volumes[1].volume_id
+    planner_service.confirm_master_outline(manifest.project_id)
+    planner_service.confirm_volume(manifest.project_id, volume_one_id)
+    planner_service.confirm_volume(manifest.project_id, volume_two_id)
+
+    planner_service.generate_chapters(manifest.project_id, volume_one_id)
+    chapters_two = planner_service.generate_chapters(manifest.project_id, volume_two_id)
+    scenes = []
+    for chapter in chapters_two:
+        planner_service.confirm_chapter(manifest.project_id, chapter.chapter_id)
+        generated_scene = planner_service.generate_scenes(manifest.project_id, chapter.chapter_id, scene_count_hint=1)[0]
+        planner_service.confirm_scene(manifest.project_id, generated_scene.scene_id)
+        scenes.append(generated_scene)
+
+    file_repository.write_json(
+        paths.volume_summaries_memory_path(manifest.slug),
+        VolumeSummariesMemoryDocument(
+            project_id=manifest.project_id,
+            items=[
+                {
+                    "volume_id": volume_one_id,
+                    "volume_no": 1,
+                    "title": "第一卷",
+                    "summary": "上一卷摘要",
+                    "hook": "上一卷钩子",
+                    "planned_chapter_count": 3,
+                    "finalized_chapter_count": 3,
+                    "finalized_chapter_ids": ["chapter_0001", "chapter_0002", "chapter_0003"],
+                    "updated_at": "2026-03-13T00:00:00Z",
+                }
+            ],
+            updated_at="2026-03-13T00:00:00Z",
+        ).model_dump(mode="json"),
+    )
+
+    service = RetrievalService(paths, file_repository, sqlite_repository, planner_service)
+    first = service.retrieve_for_scene(manifest.project_id, scenes[0].scene_id)
+    second = service.retrieve_for_scene(manifest.project_id, scenes[1].scene_id)
+    third = service.retrieve_for_scene(manifest.project_id, scenes[2].scene_id)
+
+    assert first.previous_volume_summary is not None
+    assert first.previous_volume_summary.selection_reason == "volume_boundary"
+    assert second.previous_volume_summary is not None
+    assert second.previous_volume_summary.selection_reason == "early_volume_context"
+    assert third.previous_volume_summary is None
+
+
+def test_retrieval_service_warns_on_duplicate_previous_volume_summaries_and_picks_latest(service_container) -> None:
+    from backend.app.domain.models.writing import VolumeSummariesMemoryDocument
+    from backend.app.schemas.project import CreateProjectRequest
+    from backend.app.services.retrieval_service import RetrievalService
+
+    container = service_container
+    manifest, _ = container["project_service"].create_project(
+        CreateProjectRequest(
+            title="跨卷重复摘要测试书",
+            genre="都市异能",
+            target_chapters=4,
+            target_words=400_000,
+        )
+    )
+    paths = container["paths"]
+    file_repository = container["file_repository"]
+    planner_service = container["planner_service"]
+    bible_service = container["bible_service"]
+    sqlite_repository = container["sqlite_repository"]
+
+    file_repository.write_json(
+        paths.consultant_dossier_path(manifest.slug),
+        {
+            "dossier_id": "dossier_duplicate_volume",
+            "project_id": manifest.project_id,
+            "high_concept": "跨卷重复候选测试",
+            "subgenres": ["升级流"],
+            "target_audience": ["男频爽文读者"],
+            "selling_points": ["升级"],
+            "protagonist_seed": {"summary": "主角"},
+            "golden_finger": {"summary": "系统"},
+            "core_conflicts": ["势力冲突"],
+            "chapter_1_30_beats": [{"range": "1-10", "focus": "开局"}],
+            "qa_transcript": [],
+            "version": 1,
+        },
+    )
+
+    bible_service.initialize_from_consultant(manifest.project_id)
+    bible_service.confirm_characters(manifest.project_id)
+    bible_service.confirm_world(manifest.project_id)
+    bible_service.confirm_power_system(manifest.project_id)
+    bible_service.confirm_story_bible(manifest.project_id)
+
+    outline = planner_service.generate_volumes(manifest.project_id, volume_count_hint=2, chapters_per_volume_hint=2)
+    volume_two_id = outline.volumes[1].volume_id
+    planner_service.confirm_master_outline(manifest.project_id)
+    planner_service.confirm_volume(manifest.project_id, outline.volumes[0].volume_id)
+    planner_service.confirm_volume(manifest.project_id, volume_two_id)
+    chapters_two = planner_service.generate_chapters(manifest.project_id, volume_two_id)
+    planner_service.confirm_chapter(manifest.project_id, chapters_two[0].chapter_id)
+    generated_scene = planner_service.generate_scenes(manifest.project_id, chapters_two[0].chapter_id, scene_count_hint=1)[0]
+    planner_service.confirm_scene(manifest.project_id, generated_scene.scene_id)
+
+    file_repository.write_json(
+        paths.volume_summaries_memory_path(manifest.slug),
+        VolumeSummariesMemoryDocument(
+            project_id=manifest.project_id,
+            items=[
+                {
+                    "volume_id": "volume_dup_a",
+                    "volume_no": 1,
+                    "title": "第一卷旧",
+                    "summary": "旧摘要",
+                    "hook": "旧钩子",
+                    "planned_chapter_count": 2,
+                    "finalized_chapter_count": 2,
+                    "finalized_chapter_ids": ["chapter_0001", "chapter_0002"],
+                    "updated_at": "2026-03-12T00:00:00Z",
+                },
+                {
+                    "volume_id": "volume_dup_b",
+                    "volume_no": 1,
+                    "title": "第一卷新",
+                    "summary": "新摘要",
+                    "hook": "新钩子",
+                    "planned_chapter_count": 2,
+                    "finalized_chapter_count": 2,
+                    "finalized_chapter_ids": ["chapter_0001", "chapter_0002"],
+                    "updated_at": "2026-03-13T00:00:00Z",
+                },
+            ],
+            updated_at="2026-03-13T00:00:00Z",
+        ).model_dump(mode="json"),
+    )
+
+    service = RetrievalService(paths, file_repository, sqlite_repository, planner_service)
+    retrieved = service.retrieve_for_scene(manifest.project_id, generated_scene.scene_id)
+
+    assert retrieved.previous_volume_summary is not None
+    assert retrieved.previous_volume_summary.volume_id == "volume_dup_b"
+    assert "volume_summary_duplicate_detected" in retrieved.warnings

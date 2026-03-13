@@ -10,6 +10,8 @@ from backend.app.domain.models.writing import (
     RetrievedMemoryContext,
     RetrievedPreviousChapterSummary,
     RetrievedSceneSummary,
+    RetrievedVolumeSummary,
+    VolumeSummariesMemoryDocument,
 )
 from backend.app.repositories.file_repository import FileRepository
 from backend.app.repositories.sqlite_repository import SQLiteRepository
@@ -17,6 +19,9 @@ from backend.app.services.planner_service import PlannerService
 
 
 class RetrievalService:
+    WARNING_VOLUME_SUMMARIES_UNAVAILABLE = "volume_summaries_unavailable"
+    WARNING_VOLUME_SUMMARY_DUPLICATE_DETECTED = "volume_summary_duplicate_detected"
+
     def __init__(
         self,
         paths: AppPaths,
@@ -58,9 +63,23 @@ class RetrievalService:
             warnings,
             "character_state_summaries_unavailable",
         )
+        volume_document = self._safe_read_document(
+            self.paths.volume_summaries_memory_path(slug),
+            VolumeSummariesMemoryDocument,
+            project_id,
+            warnings,
+            self.WARNING_VOLUME_SUMMARIES_UNAVAILABLE,
+        )
 
         recent_scene_summaries = self._recent_scene_summaries(accepted_document, chapter.chapter_id, scene.scene_no)
         previous_chapter_summary = self._previous_chapter_summary(chapter_document, chapter, volume)
+        previous_volume_summary = self._previous_volume_summary(
+            project_id,
+            volume_document,
+            chapter,
+            volume.volume_no,
+            warnings,
+        )
         character_state_briefs = self._character_state_briefs(character_document, scene.character_ids)
 
         return RetrievedMemoryContext(
@@ -68,6 +87,7 @@ class RetrievalService:
             warnings=warnings,
             recent_scene_summaries=recent_scene_summaries,
             previous_chapter_summary=previous_chapter_summary,
+            previous_volume_summary=previous_volume_summary,
             character_state_briefs=character_state_briefs,
         )
 
@@ -166,6 +186,45 @@ class RetrievalService:
             if brief is not None:
                 results.append(brief)
         return results
+
+    def _previous_volume_summary(
+        self,
+        project_id: str,
+        document: VolumeSummariesMemoryDocument,
+        chapter: ChapterPlan,
+        current_volume_no: int,
+        warnings: list[str],
+    ) -> RetrievedVolumeSummary | None:
+        planned_chapters = sorted(
+            self.planner_service.list_chapters(project_id, chapter.volume_id),
+            key=lambda value: value.chapter_no,
+        )
+        chapter_ids_in_order = [item.chapter_id for item in planned_chapters]
+        if chapter.chapter_id not in chapter_ids_in_order:
+            return None
+        chapter_index = chapter_ids_in_order.index(chapter.chapter_id)
+        if chapter_index not in {0, 1}:
+            return None
+
+        candidates = [item for item in document.items if item.volume_no < current_volume_no]
+        if not candidates:
+            return None
+
+        target_volume_no = max(item.volume_no for item in candidates)
+        matching = [item for item in candidates if item.volume_no == target_volume_no]
+        if len(matching) > 1:
+            warnings.append(self.WARNING_VOLUME_SUMMARY_DUPLICATE_DETECTED)
+        chosen = sorted(matching, key=lambda value: (value.volume_no, value.updated_at, value.volume_id))[-1]
+        return RetrievedVolumeSummary(
+            volume_id=chosen.volume_id,
+            volume_no=chosen.volume_no,
+            title=chosen.title,
+            summary=chosen.summary,
+            hook=chosen.hook,
+            planned_chapter_count=chosen.planned_chapter_count,
+            finalized_chapter_count=chosen.finalized_chapter_count,
+            selection_reason="volume_boundary" if chapter_index == 0 else "early_volume_context",
+        )
 
     def _require_project(self, project_id: str) -> dict[str, str]:
         project = self.sqlite_repository.get_project_record(project_id)

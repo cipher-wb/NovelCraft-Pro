@@ -210,6 +210,17 @@ class RetrievedPreviousChapterSummary(DomainModel):
     key_turns: list[str] = Field(default_factory=list)
 
 
+class RetrievedVolumeSummary(DomainModel):
+    volume_id: str
+    volume_no: int
+    title: str = ""
+    summary: str = ""
+    hook: str = ""
+    planned_chapter_count: int = 0
+    finalized_chapter_count: int = 0
+    selection_reason: str = ""
+
+
 class RetrievedCharacterStateBrief(DomainModel):
     character_id: str
     character_name: str = ""
@@ -228,6 +239,7 @@ class RetrievedMemoryContext(DomainModel):
     warnings: list[str] = Field(default_factory=list)
     recent_scene_summaries: list[RetrievedSceneSummary] = Field(default_factory=list)
     previous_chapter_summary: RetrievedPreviousChapterSummary | None = None
+    previous_volume_summary: RetrievedVolumeSummary | None = None
     character_state_briefs: list[RetrievedCharacterStateBrief] = Field(default_factory=list)
 
 
