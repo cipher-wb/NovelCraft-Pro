@@ -221,6 +221,14 @@ class RetrievedVolumeSummary(DomainModel):
     selection_reason: str = ""
 
 
+class RetrievedBookSummary(DomainModel):
+    summary: str = ""
+    hook: str = ""
+    planned_volume_count: int = 0
+    finalized_volume_count: int = 0
+    finalized_volume_ids: list[str] = Field(default_factory=list)
+
+
 class RetrievedCharacterStateBrief(DomainModel):
     character_id: str
     character_name: str = ""
@@ -241,6 +249,7 @@ class RetrievedMemoryContext(DomainModel):
     previous_chapter_summary: RetrievedPreviousChapterSummary | None = None
     previous_volume_summary: RetrievedVolumeSummary | None = None
     character_state_briefs: list[RetrievedCharacterStateBrief] = Field(default_factory=list)
+    book_summary: RetrievedBookSummary | None = None
 
 
 class ContextBundle(DomainModel):

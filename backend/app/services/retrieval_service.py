@@ -6,7 +6,9 @@ from backend.app.domain.models.writing import (
     AcceptedSceneMemoryDocument,
     ChapterSummariesMemoryDocument,
     CharacterStateSummariesMemoryDocument,
+    BookSummaryMemoryDocument,
     RetrievedCharacterStateBrief,
+    RetrievedBookSummary,
     RetrievedMemoryContext,
     RetrievedPreviousChapterSummary,
     RetrievedSceneSummary,
@@ -21,6 +23,7 @@ from backend.app.services.planner_service import PlannerService
 class RetrievalService:
     WARNING_VOLUME_SUMMARIES_UNAVAILABLE = "volume_summaries_unavailable"
     WARNING_VOLUME_SUMMARY_DUPLICATE_DETECTED = "volume_summary_duplicate_detected"
+    WARNING_BOOK_SUMMARY_UNAVAILABLE = "book_summary_unavailable"
 
     def __init__(
         self,
@@ -80,6 +83,16 @@ class RetrievalService:
             volume.volume_no,
             warnings,
         )
+        book_summary = None
+        if self._book_summary_window(project_id, volume.volume_id):
+            book_document = self._safe_read_document(
+                self.paths.book_summary_memory_path(slug),
+                BookSummaryMemoryDocument,
+                project_id,
+                warnings,
+                self.WARNING_BOOK_SUMMARY_UNAVAILABLE,
+            )
+            book_summary = self._book_summary(book_document)
         character_state_briefs = self._character_state_briefs(character_document, scene.character_ids)
 
         return RetrievedMemoryContext(
@@ -89,6 +102,7 @@ class RetrievalService:
             previous_chapter_summary=previous_chapter_summary,
             previous_volume_summary=previous_volume_summary,
             character_state_briefs=character_state_briefs,
+            book_summary=book_summary,
         )
 
     def _safe_read_document(self, path, model_cls, project_id: str, warnings: list[str], warning_code: str):
@@ -224,6 +238,28 @@ class RetrievalService:
             planned_chapter_count=chosen.planned_chapter_count,
             finalized_chapter_count=chosen.finalized_chapter_count,
             selection_reason="volume_boundary" if chapter_index == 0 else "early_volume_context",
+        )
+
+    def _book_summary_window(self, project_id: str, current_volume_id: str) -> bool:
+        planned_volumes = sorted(
+            self.planner_service.list_volumes(project_id),
+            key=lambda value: value.volume_no,
+        )
+        volume_ids_in_order = [item.volume_id for item in planned_volumes]
+        if current_volume_id not in volume_ids_in_order:
+            return False
+        current_index = volume_ids_in_order.index(current_volume_id)
+        return current_index >= max(len(volume_ids_in_order) - 2, 0)
+
+    def _book_summary(self, document: BookSummaryMemoryDocument) -> RetrievedBookSummary | None:
+        if not document.summary.strip() and not document.hook.strip():
+            return None
+        return RetrievedBookSummary(
+            summary=document.summary,
+            hook=document.hook,
+            planned_volume_count=document.planned_volume_count,
+            finalized_volume_count=document.finalized_volume_count,
+            finalized_volume_ids=document.finalized_volume_ids,
         )
 
     def _require_project(self, project_id: str) -> dict[str, str]:

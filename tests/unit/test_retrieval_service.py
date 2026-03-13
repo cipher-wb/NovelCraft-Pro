@@ -318,48 +318,152 @@ def test_retrieval_service_warns_on_duplicate_previous_volume_summaries_and_pick
     outline = planner_service.generate_volumes(manifest.project_id, volume_count_hint=2, chapters_per_volume_hint=2)
     volume_two_id = outline.volumes[1].volume_id
     planner_service.confirm_master_outline(manifest.project_id)
-    planner_service.confirm_volume(manifest.project_id, outline.volumes[0].volume_id)
-    planner_service.confirm_volume(manifest.project_id, volume_two_id)
-    chapters_two = planner_service.generate_chapters(manifest.project_id, volume_two_id)
-    planner_service.confirm_chapter(manifest.project_id, chapters_two[0].chapter_id)
-    generated_scene = planner_service.generate_scenes(manifest.project_id, chapters_two[0].chapter_id, scene_count_hint=1)[0]
-    planner_service.confirm_scene(manifest.project_id, generated_scene.scene_id)
+
+
+def test_retrieval_service_injects_book_summary_only_for_last_two_canonical_planned_volumes(service_container) -> None:
+    from backend.app.domain.models.writing import BookSummaryMemoryDocument
+    from backend.app.schemas.project import CreateProjectRequest
+    from backend.app.services.retrieval_service import RetrievalService
+
+    container = service_container
+    manifest, _ = container["project_service"].create_project(
+        CreateProjectRequest(
+            title="整书摘要注入测试书",
+            genre="都市异能",
+            target_chapters=9,
+            target_words=900_000,
+        )
+    )
+    paths = container["paths"]
+    file_repository = container["file_repository"]
+    planner_service = container["planner_service"]
+    bible_service = container["bible_service"]
+    sqlite_repository = container["sqlite_repository"]
 
     file_repository.write_json(
-        paths.volume_summaries_memory_path(manifest.slug),
-        VolumeSummariesMemoryDocument(
+        paths.consultant_dossier_path(manifest.slug),
+        {
+            "dossier_id": "dossier_book_summary",
+            "project_id": manifest.project_id,
+            "high_concept": "整书摘要注入测试",
+            "subgenres": ["升级流"],
+            "target_audience": ["男频爽文读者"],
+            "selling_points": ["升级"],
+            "protagonist_seed": {"summary": "主角"},
+            "golden_finger": {"summary": "系统"},
+            "core_conflicts": ["势力冲突"],
+            "chapter_1_30_beats": [{"range": "1-10", "focus": "开局"}],
+            "qa_transcript": [],
+            "version": 1,
+        },
+    )
+
+    bible_service.initialize_from_consultant(manifest.project_id)
+    bible_service.confirm_characters(manifest.project_id)
+    bible_service.confirm_world(manifest.project_id)
+    bible_service.confirm_power_system(manifest.project_id)
+    bible_service.confirm_story_bible(manifest.project_id)
+
+    outline = planner_service.generate_volumes(manifest.project_id, volume_count_hint=3, chapters_per_volume_hint=1)
+    planner_service.confirm_master_outline(manifest.project_id)
+    scene_ids_by_volume: dict[str, str] = {}
+    volume_ids = [item.volume_id for item in outline.volumes]
+    for volume_id in volume_ids:
+        planner_service.confirm_volume(manifest.project_id, volume_id)
+        chapter = planner_service.generate_chapters(manifest.project_id, volume_id)[0]
+        planner_service.confirm_chapter(manifest.project_id, chapter.chapter_id)
+        scene = planner_service.generate_scenes(manifest.project_id, chapter.chapter_id, scene_count_hint=1)[0]
+        planner_service.confirm_scene(manifest.project_id, scene.scene_id)
+        scene_ids_by_volume[volume_id] = scene.scene_id
+
+    file_repository.write_json(
+        paths.book_summary_memory_path(manifest.slug),
+        BookSummaryMemoryDocument(
             project_id=manifest.project_id,
-            items=[
-                {
-                    "volume_id": "volume_dup_a",
-                    "volume_no": 1,
-                    "title": "第一卷旧",
-                    "summary": "旧摘要",
-                    "hook": "旧钩子",
-                    "planned_chapter_count": 2,
-                    "finalized_chapter_count": 2,
-                    "finalized_chapter_ids": ["chapter_0001", "chapter_0002"],
-                    "updated_at": "2026-03-12T00:00:00Z",
-                },
-                {
-                    "volume_id": "volume_dup_b",
-                    "volume_no": 1,
-                    "title": "第一卷新",
-                    "summary": "新摘要",
-                    "hook": "新钩子",
-                    "planned_chapter_count": 2,
-                    "finalized_chapter_count": 2,
-                    "finalized_chapter_ids": ["chapter_0001", "chapter_0002"],
-                    "updated_at": "2026-03-13T00:00:00Z",
-                },
-            ],
+            version=1,
             updated_at="2026-03-13T00:00:00Z",
+            summary="整书摘要",
+            hook="整书钩子",
+            planned_volume_count=3,
+            finalized_volume_count=3,
+            finalized_volume_ids=volume_ids,
         ).model_dump(mode="json"),
     )
 
     service = RetrievalService(paths, file_repository, sqlite_repository, planner_service)
-    retrieved = service.retrieve_for_scene(manifest.project_id, generated_scene.scene_id)
+    first = service.retrieve_for_scene(manifest.project_id, scene_ids_by_volume[volume_ids[0]])
+    second = service.retrieve_for_scene(manifest.project_id, scene_ids_by_volume[volume_ids[1]])
+    third = service.retrieve_for_scene(manifest.project_id, scene_ids_by_volume[volume_ids[2]])
 
-    assert retrieved.previous_volume_summary is not None
-    assert retrieved.previous_volume_summary.volume_id == "volume_dup_b"
-    assert "volume_summary_duplicate_detected" in retrieved.warnings
+    assert first.book_summary is None
+    assert second.book_summary is not None
+    assert second.book_summary.summary == "整书摘要"
+    assert third.book_summary is not None
+    assert third.book_summary.hook == "整书钩子"
+
+
+def test_retrieval_service_degrades_gracefully_when_book_summary_is_missing_or_invalid(service_container) -> None:
+    from backend.app.schemas.project import CreateProjectRequest
+    from backend.app.services.retrieval_service import RetrievalService
+
+    container = service_container
+    manifest, _ = container["project_service"].create_project(
+        CreateProjectRequest(
+            title="整书摘要降级测试书",
+            genre="都市异能",
+            target_chapters=6,
+            target_words=600_000,
+        )
+    )
+    paths = container["paths"]
+    file_repository = container["file_repository"]
+    planner_service = container["planner_service"]
+    bible_service = container["bible_service"]
+    sqlite_repository = container["sqlite_repository"]
+
+    file_repository.write_json(
+        paths.consultant_dossier_path(manifest.slug),
+        {
+            "dossier_id": "dossier_book_summary_fallback",
+            "project_id": manifest.project_id,
+            "high_concept": "整书摘要降级测试",
+            "subgenres": ["升级流"],
+            "target_audience": ["男频爽文读者"],
+            "selling_points": ["升级"],
+            "protagonist_seed": {"summary": "主角"},
+            "golden_finger": {"summary": "系统"},
+            "core_conflicts": ["势力冲突"],
+            "chapter_1_30_beats": [{"range": "1-10", "focus": "开局"}],
+            "qa_transcript": [],
+            "version": 1,
+        },
+    )
+
+    bible_service.initialize_from_consultant(manifest.project_id)
+    bible_service.confirm_characters(manifest.project_id)
+    bible_service.confirm_world(manifest.project_id)
+    bible_service.confirm_power_system(manifest.project_id)
+    bible_service.confirm_story_bible(manifest.project_id)
+
+    outline = planner_service.generate_volumes(manifest.project_id, volume_count_hint=2, chapters_per_volume_hint=1)
+    planner_service.confirm_master_outline(manifest.project_id)
+    target_volume_id = outline.volumes[1].volume_id
+    for volume_id in [item.volume_id for item in outline.volumes]:
+        planner_service.confirm_volume(manifest.project_id, volume_id)
+        chapter = planner_service.generate_chapters(manifest.project_id, volume_id)[0]
+        planner_service.confirm_chapter(manifest.project_id, chapter.chapter_id)
+        scene = planner_service.generate_scenes(manifest.project_id, chapter.chapter_id, scene_count_hint=1)[0]
+        planner_service.confirm_scene(manifest.project_id, scene.scene_id)
+        if volume_id == target_volume_id:
+            target_scene_id = scene.scene_id
+
+    service = RetrievalService(paths, file_repository, sqlite_repository, planner_service)
+    paths.book_summary_memory_path(manifest.slug).unlink()
+    missing = service.retrieve_for_scene(manifest.project_id, target_scene_id)
+    assert missing.book_summary is None
+    assert RetrievalService.WARNING_BOOK_SUMMARY_UNAVAILABLE in missing.warnings
+
+    file_repository.write_text(paths.book_summary_memory_path(manifest.slug), "{broken json")
+    broken = service.retrieve_for_scene(manifest.project_id, target_scene_id)
+    assert broken.book_summary is None
+    assert RetrievalService.WARNING_BOOK_SUMMARY_UNAVAILABLE in broken.warnings

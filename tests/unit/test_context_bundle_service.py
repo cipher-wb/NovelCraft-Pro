@@ -136,3 +136,6 @@ def test_context_bundle_includes_retrieved_memory_and_keeps_compact_shape(servic
     assert "world_rules" not in payload
     assert "realm_ladder" not in payload
     assert "items" not in payload
+    assert "book_summary" in payload["retrieved_memory"]
+    assert "book_summary" not in payload["story_anchor"]
+    assert "book_summary" not in payload["continuity"]

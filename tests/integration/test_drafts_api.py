@@ -94,6 +94,70 @@ def _create_two_volume_project(client: TestClient, create_finalized_project) -> 
     }
 
 
+def _create_three_volume_project_with_book_summary(client: TestClient, create_finalized_project) -> dict[str, object]:
+    import json
+
+    project = create_finalized_project()
+    project_id = project["project_id"]
+
+    assert client.post(f"/api/projects/{project_id}/bible/from-consultant").status_code == 201
+    assert client.post(f"/api/projects/{project_id}/characters/confirm").status_code == 200
+    assert client.post(f"/api/projects/{project_id}/bible/world/confirm").status_code == 200
+    assert client.post(f"/api/projects/{project_id}/bible/power-system/confirm").status_code == 200
+    assert client.post(f"/api/projects/{project_id}/bible/story-bible/confirm").status_code == 200
+
+    outline = client.post(
+        f"/api/projects/{project_id}/plans/volumes/generate",
+        json={"volume_count_hint": 3, "chapters_per_volume_hint": 1},
+    )
+    assert outline.status_code == 201
+    volumes = outline.json()["volumes"]
+    volume_ids = [item["volume_id"] for item in volumes]
+    assert client.post(f"/api/projects/{project_id}/plans/master-outline/confirm").status_code == 200
+
+    scene_ids_by_volume: dict[str, str] = {}
+    for volume_id in volume_ids:
+        assert client.post(f"/api/projects/{project_id}/plans/volumes/{volume_id}/confirm").status_code == 200
+        chapters = client.post(f"/api/projects/{project_id}/plans/volumes/{volume_id}/chapters/generate")
+        assert chapters.status_code == 201
+        chapter_id = chapters.json()["items"][0]["chapter_id"]
+        assert client.post(f"/api/projects/{project_id}/plans/chapters/{chapter_id}/confirm").status_code == 200
+        scenes = client.post(
+            f"/api/projects/{project_id}/plans/chapters/{chapter_id}/scenes/generate",
+            json={"scene_count_hint": 1},
+        )
+        assert scenes.status_code == 201
+        scene_id = scenes.json()["items"][0]["scene_id"]
+        assert client.post(f"/api/projects/{project_id}/plans/scenes/{scene_id}/confirm").status_code == 200
+        scene_ids_by_volume[volume_id] = scene_id
+
+    book_summary_path = _project_root(project["slug"]) / "memory" / "book_summary.json"
+    book_summary_path.write_text(
+        json.dumps(
+            {
+                "project_id": project_id,
+                "version": 1,
+                "updated_at": "2026-03-13T00:00:00Z",
+                "summary": "整书摘要",
+                "hook": "整书钩子",
+                "planned_volume_count": 3,
+                "finalized_volume_count": 3,
+                "finalized_volume_ids": volume_ids,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    return {
+        "project_id": project_id,
+        "slug": project["slug"],
+        "volume_ids": volume_ids,
+        "scene_ids_by_volume": scene_ids_by_volume,
+    }
+
+
 
 def test_scene_draft_generate_accept_reject_flow(client: TestClient, build_ready_scene_project) -> None:
     project = build_ready_scene_project(confirm_scene=True)
@@ -490,6 +554,96 @@ def test_generate_degrades_when_volume_summaries_are_missing_or_corrupt(
     retrieved_broken = generated_broken.json()["context_bundle"]["retrieved_memory"]
     assert retrieved_broken["previous_volume_summary"] is None
     assert "volume_summaries_unavailable" in retrieved_broken["warnings"]
+
+
+def test_generate_and_repair_include_book_summary_only_in_last_two_planned_volumes(
+    client: TestClient,
+    create_finalized_project,
+) -> None:
+    import json
+
+    project = _create_three_volume_project_with_book_summary(client, create_finalized_project)
+    volume_ids = project["volume_ids"]
+    scene_ids_by_volume = project["scene_ids_by_volume"]
+
+    generated_first = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{scene_ids_by_volume[volume_ids[0]]}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert generated_first.status_code == 201
+    assert generated_first.json()["context_bundle"]["retrieved_memory"]["book_summary"] is None
+
+    generated_second = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{scene_ids_by_volume[volume_ids[1]]}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert generated_second.status_code == 201
+    second_book_summary = generated_second.json()["context_bundle"]["retrieved_memory"]["book_summary"]
+    assert second_book_summary is not None
+    assert second_book_summary["summary"] == "整书摘要"
+
+    source_draft = generated_second.json()["draft"]
+    source_path = _project_root(project["slug"]) / source_draft["draft_path"]
+    payload = json.loads(source_path.read_text(encoding="utf-8"))
+    payload["content_md"] = "空白文本。"
+    payload["summary"] = "空白摘要。"
+    payload["updated_at"] = "2026-03-12T12:00:00+00:00"
+    source_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    repaired = client.post(f"/api/projects/{project['project_id']}/drafts/{source_draft['draft_id']}/repair")
+    assert repaired.status_code == 200
+    assert repaired.json()["context_bundle"]["retrieved_memory"]["book_summary"] is not None
+
+    generated_third = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{scene_ids_by_volume[volume_ids[2]]}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert generated_third.status_code == 201
+    third_book_summary = generated_third.json()["context_bundle"]["retrieved_memory"]["book_summary"]
+    assert third_book_summary is not None
+    assert third_book_summary["hook"] == "整书钩子"
+
+
+def test_generate_and_repair_degrade_when_book_summary_is_missing_or_corrupt(
+    client: TestClient,
+    create_finalized_project,
+) -> None:
+    import json
+
+    project = _create_three_volume_project_with_book_summary(client, create_finalized_project)
+    volume_ids = project["volume_ids"]
+    scene_ids_by_volume = project["scene_ids_by_volume"]
+    book_summary_path = _project_root(project["slug"]) / "memory" / "book_summary.json"
+
+    book_summary_path.unlink()
+    generated_missing = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{scene_ids_by_volume[volume_ids[2]]}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert generated_missing.status_code == 201
+    retrieved_missing = generated_missing.json()["context_bundle"]["retrieved_memory"]
+    assert retrieved_missing["book_summary"] is None
+    assert "book_summary_unavailable" in retrieved_missing["warnings"]
+
+    source_draft = generated_missing.json()["draft"]
+    source_path = _project_root(project["slug"]) / source_draft["draft_path"]
+    payload = json.loads(source_path.read_text(encoding="utf-8"))
+    payload["content_md"] = "空白文本。"
+    payload["summary"] = "空白摘要。"
+    payload["updated_at"] = "2026-03-12T12:00:00+00:00"
+    source_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    repaired_missing = client.post(f"/api/projects/{project['project_id']}/drafts/{source_draft['draft_id']}/repair")
+    assert repaired_missing.status_code == 200
+    assert "book_summary_unavailable" in repaired_missing.json()["context_bundle"]["retrieved_memory"]["warnings"]
+
+    book_summary_path.write_text("{broken json", encoding="utf-8")
+    generated_broken = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{scene_ids_by_volume[volume_ids[2]]}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert generated_broken.status_code == 201
+    retrieved_broken = generated_broken.json()["context_bundle"]["retrieved_memory"]
+    assert retrieved_broken["book_summary"] is None
+    assert "book_summary_unavailable" in retrieved_broken["warnings"]
 
 
 def test_repair_endpoint_handles_blocked_and_warning_drafts(client: TestClient, build_ready_scene_project) -> None:
