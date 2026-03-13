@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
+
 from fastapi.testclient import TestClient
 
 
@@ -200,6 +202,7 @@ def test_missing_report_on_accept_triggers_preflight_rerun(client: TestClient, b
 def test_scene_studio_page_is_available(client: TestClient) -> None:
     response = client.get("/studio/scene.html")
     assert response.status_code == 200
+    assert "Repair Draft" in response.text
 
 def test_accept_preflight_reruns_checks_after_memory_changes(client: TestClient, build_ready_scene_project) -> None:
     project = build_ready_scene_project(confirm_scene=True)
@@ -246,3 +249,100 @@ def test_corrupt_context_bundle_degrades_without_500(client: TestClient, build_r
     rejected = client.post(f"/api/projects/{project['project_id']}/drafts/{draft['draft_id']}/reject")
     assert rejected.status_code == 200
     assert rejected.json()["draft"]["status"] == "rejected"
+
+
+def test_repair_endpoint_handles_blocked_and_warning_drafts(client: TestClient, build_ready_scene_project) -> None:
+    project = build_ready_scene_project(confirm_scene=True)
+    generated = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{project['scene_id']}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert generated.status_code == 201
+    source = generated.json()["draft"]
+
+    source_path = _project_root(project["slug"]) / source["draft_path"]
+    payload = __import__("json").loads(source_path.read_text(encoding="utf-8"))
+    payload["content_md"] = "空白文本"
+    payload["summary"] = "空白摘要"
+    payload["updated_at"] = "2026-03-12T12:00:00+00:00"
+    source_path.write_text(__import__("json").dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    repaired = client.post(f"/api/projects/{project['project_id']}/drafts/{source['draft_id']}/repair")
+    assert repaired.status_code == 200
+    repaired_payload = repaired.json()
+    assert repaired_payload["draft"]["operation"] == "repair"
+    assert repaired_payload["draft"]["supersedes_draft_id"] == source["draft_id"]
+    assert repaired_payload["draft"]["latest_check_report_path"] != source["latest_check_report_path"]
+
+    source_fetched = client.get(f"/api/projects/{project['project_id']}/drafts/{source['draft_id']}")
+    assert source_fetched.status_code == 200
+    assert source_fetched.json()["draft"]["status"] == "superseded"
+
+    scene_payload = client.get(f"/api/projects/{project['project_id']}/plans/scenes/{project['scene_id']}").json()
+    scene_plan_path = _project_root(project["slug"]) / f"plans/scenes/chapter-{scene_payload['chapter_no']:04d}-scene-{scene_payload['scene_no']:03d}.json"
+    scene_plan = __import__("json").loads(scene_plan_path.read_text(encoding="utf-8"))
+    scene_plan["time_anchor"] = "黎明前"
+    scene_plan["version"] = scene_plan["version"] + 1
+    scene_plan_path.write_text(__import__("json").dumps(scene_plan, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    warning_generated = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{project['scene_id']}/generate",
+        json={"mode": "momentum"},
+    )
+    warning_payload_root = warning_generated.json()
+    warning_source = warning_payload_root["draft"]
+    assert warning_payload_root["check_report"]["overall_status"] == "warning"
+
+    repaired_warning = client.post(f"/api/projects/{project['project_id']}/drafts/{warning_source['draft_id']}/repair")
+    assert repaired_warning.status_code == 200
+    assert repaired_warning.json()["draft"]["operation"] == "repair"
+
+
+def test_repair_endpoint_rejects_clean_sources_and_preserves_manifest_on_failure(
+    client: TestClient,
+    build_ready_scene_project,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.app.api import drafts as drafts_api
+    from backend.app.services.exceptions import ConflictError
+
+    project = build_ready_scene_project(confirm_scene=True)
+    generated = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{project['scene_id']}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert generated.status_code == 201
+    source = generated.json()["draft"]
+
+    clean_response = client.post(f"/api/projects/{project['project_id']}/drafts/{source['draft_id']}/repair")
+    assert clean_response.status_code == 409
+
+    manifest_before = client.get(f"/api/projects/{project['project_id']}/drafts/scenes/{project['scene_id']}").json()
+
+    source_path = _project_root(project["slug"]) / source["draft_path"]
+    payload = __import__("json").loads(source_path.read_text(encoding="utf-8"))
+    payload["content_md"] = "空白文本"
+    payload["summary"] = "空白摘要"
+    payload["updated_at"] = "2026-03-12T12:00:00+00:00"
+    source_path.write_text(__import__("json").dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    original_builder = drafts_api._build_services
+
+    def _patched(settings):
+        draft_service, checks_service, repair_service = original_builder(settings)
+
+        def _boom(*args, **kwargs):
+            raise ConflictError("repair failed")
+
+        repair_service.repair_draft = _boom
+        return draft_service, checks_service, repair_service
+
+    monkeypatch.setattr(drafts_api, "_build_services", _patched)
+    failed = client.post(f"/api/projects/{project['project_id']}/drafts/{source['draft_id']}/repair")
+    assert failed.status_code == 409
+    manifest_after = client.get(f"/api/projects/{project['project_id']}/drafts/scenes/{project['scene_id']}").json()
+    assert manifest_after == manifest_before
+
+
+
+

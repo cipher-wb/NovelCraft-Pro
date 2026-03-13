@@ -85,7 +85,7 @@
 <body>
 <main>
   <h1>NovelCraft Pro Scene Draft Studio</h1>
-  <p>Phase 3A 最小场景草稿工作台：加载 scene、生成 draft、查看 draft、accept / reject。</p>
+  <p>Phase 5A 最小场景草稿工作台：加载 scene、生成 draft、查看 draft、accept / reject / repair。</p>
 
   <section>
     <h2>1. 载入 Scene</h2>
@@ -126,6 +126,7 @@
     <div id="draftMeta" class="meta">尚未选择 draft。</div>
     <button id="acceptDraft">Accept</button>
     <button id="rejectDraft">Reject</button>
+    <button id="repairDraft" style="display:none">Repair Draft</button>
     <pre id="draftOutput">等待选择 draft...</pre>
   </section>
 
@@ -145,6 +146,7 @@
   const draftMeta = document.getElementById('draftMeta');
   const manifestMeta = document.getElementById('manifestMeta');
   const draftList = document.getElementById('draftList');
+  const repairButton = document.getElementById('repairDraft');
 
   function setDebug(payload) {
     debugOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
@@ -157,6 +159,22 @@
       throw new Error(JSON.stringify(payload));
     }
     return payload;
+  }
+
+  function updateRepairButton(payload) {
+    const draft = payload && payload.draft ? payload.draft : null;
+    const report = payload && payload.check_report ? payload.check_report : null;
+    const visible = draft && draft.status === 'draft' && report && ['blocked', 'warning'].includes(report.overall_status);
+    repairButton.style.display = visible ? 'inline-block' : 'none';
+  }
+
+  function updateDraftView(payload) {
+    currentDraftId = payload.draft.draft_id;
+    const reportStatus = payload.check_report ? payload.check_report.overall_status : '-';
+    draftMeta.textContent = `draft=${payload.draft.draft_id} status=${payload.draft.status} mode=${payload.draft.candidate_mode} checks=${reportStatus}`;
+    draftOutput.textContent = payload.draft.content_md;
+    setDebug(payload);
+    updateRepairButton(payload);
   }
 
   async function loadScene() {
@@ -200,11 +218,10 @@
     currentDraftId = draftId;
     try {
       const payload = await fetchJson(`/api/projects/${currentProjectId}/drafts/${draftId}`);
-      draftMeta.textContent = `draft=${payload.draft.draft_id} status=${payload.draft.status} mode=${payload.draft.candidate_mode}`;
-      draftOutput.textContent = payload.draft.content_md;
-      setDebug(payload);
+      updateDraftView(payload);
     } catch (error) {
       setDebug(String(error));
+      updateRepairButton(null);
     }
   }
 
@@ -221,13 +238,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: document.getElementById('mode').value })
       });
-      currentDraftId = payload.draft.draft_id;
-      draftMeta.textContent = `draft=${payload.draft.draft_id} status=${payload.draft.status} mode=${payload.draft.candidate_mode}`;
-      draftOutput.textContent = payload.draft.content_md;
-      setDebug(payload);
+      updateDraftView(payload);
       await loadManifest();
     } catch (error) {
       setDebug(String(error));
+      updateRepairButton(null);
     }
   }
 
@@ -240,9 +255,25 @@
       const payload = await fetchJson(`/api/projects/${currentProjectId}/drafts/${currentDraftId}/${action}`, {
         method: 'POST'
       });
-      draftMeta.textContent = `draft=${payload.draft.draft_id} status=${payload.draft.status} mode=${payload.draft.candidate_mode}`;
-      draftOutput.textContent = payload.draft.content_md;
-      setDebug(payload);
+      updateDraftView(payload);
+      await loadManifest();
+    } catch (error) {
+      setDebug(String(error));
+    }
+  }
+
+  async function repairDraft() {
+    if (!currentProjectId || !currentDraftId) {
+      setDebug('请先选择 draft。');
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/drafts/${currentDraftId}/repair`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      updateDraftView(payload);
       await loadManifest();
     } catch (error) {
       setDebug(String(error));
@@ -253,6 +284,7 @@
   document.getElementById('generateDraft').addEventListener('click', generateDraft);
   document.getElementById('acceptDraft').addEventListener('click', () => actDraft('accept'));
   document.getElementById('rejectDraft').addEventListener('click', () => actDraft('reject'));
+  document.getElementById('repairDraft').addEventListener('click', repairDraft);
 </script>
 </body>
 </html>

@@ -127,3 +127,56 @@ def test_accept_reject_are_strict_and_manifest_stays_consistent(service_containe
     assert previous.status == "superseded"
     assert scene_manifest.latest_draft_id == draft_three.draft_id
     assert scene_manifest.accepted_draft_id == draft_three.draft_id
+
+
+def test_repaired_draft_accept_and_reject_reuse_existing_mainline(service_container) -> None:
+    seeded = service_container["seed_project"](ready_scene=True, scene_count_hint=2)
+    manifest = seeded["manifest"]
+    paths = seeded["paths"]
+    file_repository = seeded["file_repository"]
+    draft_service = _build_draft_service(seeded)
+
+    from backend.app.services.checks_service import ChecksService
+    from backend.app.services.context_bundle_service import ContextBundleService
+    from backend.app.services.memory_service import MemoryService
+    from backend.app.services.repair_service import RepairService
+    from backend.app.services.retrieval_service import RetrievalService
+
+    retrieval_service = RetrievalService(paths, file_repository, seeded["sqlite_repository"], seeded["planner_service"])
+    context_service = ContextBundleService(paths, file_repository, seeded["bible_service"], seeded["planner_service"], retrieval_service)
+    checks_service = ChecksService(paths, file_repository, seeded["sqlite_repository"], seeded["bible_service"], seeded["planner_service"], context_service)
+    repair_service = RepairService(
+        paths,
+        file_repository,
+        seeded["sqlite_repository"],
+        seeded["planner_service"],
+        draft_service,
+        context_service,
+        checks_service,
+        seeded["llm_gateway"],
+    )
+
+    source = draft_service.generate(manifest.project_id, seeded["scene_id"], mode="outline_strict")
+    payload = source.model_dump(mode="json")
+    payload["content_md"] = "空白文本"
+    payload["summary"] = "空白摘要"
+    payload["updated_at"] = "2026-03-12T12:00:00+00:00"
+    file_repository.write_json(paths.project_root(manifest.slug) / source.draft_path, payload)
+
+    repaired = repair_service.repair_draft(manifest.project_id, source.draft_id)
+    rejected = draft_service.reject(manifest.project_id, repaired.draft_id)
+    assert rejected.status == "rejected"
+
+    source_two = draft_service.generate(manifest.project_id, seeded["scene_id"], mode="momentum")
+    payload_two = source_two.model_dump(mode="json")
+    payload_two["content_md"] = "空白文本"
+    payload_two["summary"] = "空白摘要"
+    payload_two["updated_at"] = "2026-03-12T12:00:00+00:00"
+    file_repository.write_json(paths.project_root(manifest.slug) / source_two.draft_path, payload_two)
+    repaired_two = repair_service.repair_draft(manifest.project_id, source_two.draft_id)
+    accepted = draft_service.accept(manifest.project_id, repaired_two.draft_id)
+    scene_manifest = draft_service.get_scene_manifest(manifest.project_id, seeded["scene_id"])
+
+    assert accepted.status == "accepted"
+    assert scene_manifest.accepted_draft_id == repaired_two.draft_id
+    assert accepted.memory_stub_record_id is not None

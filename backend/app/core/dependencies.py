@@ -14,6 +14,7 @@ from backend.app.services.context_bundle_service import ContextBundleService
 from backend.app.services.memory_service import MemoryService
 from backend.app.services.planner_service import PlannerService
 from backend.app.services.project_service import ProjectService
+from backend.app.services.repair_service import RepairService
 from backend.app.services.retrieval_service import RetrievalService
 from backend.app.services.scene_draft_service import SceneDraftService
 
@@ -154,6 +155,29 @@ def get_scene_draft_service(
         planner_service,
         context_bundle_service,
         memory_service,
+        checks_service,
+        llm_gateway,
+    )
+
+
+
+def get_repair_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    planner_service: PlannerService,
+    scene_draft_service: SceneDraftService,
+    context_bundle_service: ContextBundleService,
+    checks_service: ChecksService,
+    llm_gateway,
+) -> RepairService:
+    return RepairService(
+        paths,
+        file_repository,
+        sqlite_repository,
+        planner_service,
+        scene_draft_service,
+        context_bundle_service,
         checks_service,
         llm_gateway,
     )

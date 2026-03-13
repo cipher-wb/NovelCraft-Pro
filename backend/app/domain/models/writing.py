@@ -249,6 +249,17 @@ class ContextBundle(DomainModel):
     retrieved_memory: RetrievedMemoryContext = Field(default_factory=RetrievedMemoryContext)
 
 
+class RepairMetadata(DomainModel):
+    source_draft_id: str
+    source_check_run_id: str
+    source_check_report_path: str
+    selected_issue_ids: list[str] = Field(default_factory=list)
+    selected_blocker_issue_ids: list[str] = Field(default_factory=list)
+    selected_warning_issue_ids: list[str] = Field(default_factory=list)
+    repair_strategy_version: str = "targeted_repair_v1"
+    repair_summary: str = ""
+
+
 class SceneDraft(DomainModel):
     draft_id: str
     project_id: str
@@ -263,6 +274,7 @@ class SceneDraft(DomainModel):
     status: str
     content_md: str
     summary: str = ""
+    repair_metadata: RepairMetadata | None = None
     context_bundle_id: str | None = None
     context_bundle_path: str | None = None
     draft_path: str | None = None
@@ -366,4 +378,3 @@ class DraftVersion(DomainModel):
     checksum: str = ""
     snapshot_path: str
     is_active: bool = True
-
