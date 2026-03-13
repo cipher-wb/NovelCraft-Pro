@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NovelCraft Pro Chapter Assembly Studio</title>
+  <style>
+    :root {
+      --bg: #f4efe7;
+      --panel: #fffaf2;
+      --ink: #1f1a17;
+      --muted: #6f6257;
+      --accent: #b5522d;
+      --border: #d9c9b7;
+    }
+    body { margin: 0; font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: radial-gradient(circle at top, #fff8eb, var(--bg)); color: var(--ink); }
+    main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 48px; }
+    section { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-top: 16px; box-shadow: 0 12px 40px rgba(31,26,23,0.06); }
+    h1,h2 { margin: 0 0 10px; }
+    p { color: var(--muted); }
+    label { display:block; margin: 10px 0 6px; font-weight: 600; }
+    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: #fff; color: var(--ink); }
+    button { margin-top: 12px; padding: 10px 16px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; cursor: pointer; font-weight: 700; margin-right: 8px; }
+    pre { white-space: pre-wrap; background: #221d19; color: #f8f3ee; padding: 16px; border-radius: 12px; overflow: auto; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>NovelCraft Pro Chapter Assembly Studio</h1>
+  <p>Phase 6 最小章节组装工作台：查看 chapter、assemble、recheck、finalize。</p>
+
+  <section>
+    <h2>1. 载入 Chapter</h2>
+    <label for="projectId">Project ID</label>
+    <input id="projectId" placeholder="proj_xxx">
+    <label for="chapterId">Chapter ID</label>
+    <input id="chapterId" placeholder="chapter_0001">
+    <button id="loadChapter">加载 Chapter</button>
+    <button id="assembleChapter">Assemble Chapter</button>
+    <button id="recheckChapter">Recheck</button>
+    <button id="finalizeChapter">Finalize</button>
+  </section>
+
+  <section>
+    <h2>2. Assembled 内容</h2>
+    <pre id="assembledOutput">等待载入 chapter...</pre>
+  </section>
+
+  <section>
+    <h2>3. Checks</h2>
+    <pre id="checksOutput">等待检查结果...</pre>
+  </section>
+</main>
+<script>
+  let currentProjectId = "";
+  let currentChapterId = "";
+
+  const assembledOutput = document.getElementById("assembledOutput");
+  const checksOutput = document.getElementById("checksOutput");
+
+  async function fetchJson(url, options = {}) {
+    const response = await fetch(url, options);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(JSON.stringify(payload));
+    return payload;
+  }
+
+  async function loadChapter() {
+    currentProjectId = document.getElementById("projectId").value.trim();
+    currentChapterId = document.getElementById("chapterId").value.trim();
+    if (!currentProjectId || !currentChapterId) {
+      assembledOutput.textContent = "请先输入 project_id 和 chapter_id。";
+      return;
+    }
+    try {
+      const assembled = await fetchJson(`/api/projects/${currentProjectId}/chapters/${currentChapterId}/assembled`);
+      assembledOutput.textContent = JSON.stringify(assembled, null, 2);
+    } catch (error) {
+      assembledOutput.textContent = String(error);
+    }
+    try {
+      const report = await fetchJson(`/api/projects/${currentProjectId}/chapters/${currentChapterId}/checks/latest`);
+      checksOutput.textContent = JSON.stringify(report, null, 2);
+    } catch (error) {
+      checksOutput.textContent = String(error);
+    }
+  }
+
+  async function callChapterAction(action) {
+    currentProjectId = document.getElementById("projectId").value.trim();
+    currentChapterId = document.getElementById("chapterId").value.trim();
+    if (!currentProjectId || !currentChapterId) {
+      assembledOutput.textContent = "请先输入 project_id 和 chapter_id。";
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/chapters/${currentChapterId}/${action}`, { method: "POST" });
+      if (payload.assembled) {
+        assembledOutput.textContent = JSON.stringify(payload.assembled, null, 2);
+        checksOutput.textContent = JSON.stringify(payload.check_report, null, 2);
+      } else if (payload.report) {
+        checksOutput.textContent = JSON.stringify(payload.report, null, 2);
+        await loadChapter();
+      }
+    } catch (error) {
+      assembledOutput.textContent = String(error);
+    }
+  }
+
+  document.getElementById("loadChapter").addEventListener("click", loadChapter);
+  document.getElementById("assembleChapter").addEventListener("click", () => callChapterAction("assemble"));
+  document.getElementById("recheckChapter").addEventListener("click", () => callChapterAction("checks/recheck"));
+  document.getElementById("finalizeChapter").addEventListener("click", () => callChapterAction("finalize"));
+</script>
+</body>
+</html>

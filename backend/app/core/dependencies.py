@@ -8,6 +8,8 @@ from backend.app.repositories.sqlite_repository import SQLiteRepository
 from backend.app.repositories.vector_repository import VectorRepository
 from backend.app.services.bible_service import BibleService
 from backend.app.services.bootstrap_service import BootstrapService
+from backend.app.services.chapter_assembly_service import ChapterAssemblyService
+from backend.app.services.chapter_checks_service import ChapterChecksService
 from backend.app.services.checks_service import ChecksService
 from backend.app.services.consultant_service import ConsultantService
 from backend.app.services.context_bundle_service import ContextBundleService
@@ -199,4 +201,34 @@ def get_repair_service(
         checks_service,
         style_service,
         llm_gateway,
+    )
+
+
+def get_chapter_checks_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    planner_service: PlannerService,
+    scene_draft_service: SceneDraftService,
+) -> ChapterChecksService:
+    return ChapterChecksService(paths, file_repository, sqlite_repository, planner_service, scene_draft_service)
+
+
+def get_chapter_assembly_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    planner_service: PlannerService,
+    scene_draft_service: SceneDraftService,
+    memory_service: MemoryService,
+    chapter_checks_service: ChapterChecksService,
+) -> ChapterAssemblyService:
+    return ChapterAssemblyService(
+        paths,
+        file_repository,
+        sqlite_repository,
+        planner_service,
+        scene_draft_service,
+        memory_service,
+        chapter_checks_service,
     )

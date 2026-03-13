@@ -8,6 +8,7 @@ from backend.app.domain.models.planning import ChapterPlan, ScenePlan, VolumePla
 from backend.app.domain.models.writing import (
     AcceptedSceneMemoryDocument,
     AcceptedSceneMemoryItem,
+    ChapterAssembledDocument,
     ChapterSummariesMemoryDocument,
     ChapterSummaryMemoryItem,
     CharacterStateSummariesMemoryDocument,
@@ -38,8 +39,11 @@ class MemoryService:
         self._write_accepted_scenes(slug, accepted_doc)
 
         chapter_doc = self.read_chapter_summaries(slug, draft.project_id)
-        chapter_item = self._recompute_chapter_summary(chapter_doc, accepted_doc, chapter)
-        self._write_chapter_summaries(slug, chapter_doc)
+        chapter_item: ChapterSummaryMemoryItem | None = None
+        chapter_assembled = self._read_chapter_assembled(slug, chapter.chapter_id)
+        if chapter_assembled is None or chapter_assembled.status != "finalized":
+            chapter_item = self._recompute_chapter_summary(chapter_doc, accepted_doc, chapter)
+            self._write_chapter_summaries(slug, chapter_doc)
 
         character_doc = self.read_character_state_summaries(slug, draft.project_id)
         aggregate = self.bible_service.get_bible_aggregate(draft.project_id)
@@ -51,6 +55,33 @@ class MemoryService:
             chapter_summary_item=chapter_item,
             character_state_count=len(character_doc.items),
         )
+
+    def update_finalized_chapter_summary(self, slug: str, assembled: ChapterAssembledDocument) -> ChapterSummaryMemoryItem:
+        document = self.read_chapter_summaries(slug, assembled.project_id)
+        document.items = [item for item in document.items if item.chapter_id != assembled.chapter_id]
+        last_scene = assembled.scene_order[-1] if assembled.scene_order else None
+        chapter_item = ChapterSummaryMemoryItem(
+            chapter_id=assembled.chapter_id,
+            volume_id=assembled.volume_id,
+            chapter_no=assembled.chapter_no,
+            chapter_title="",
+            accepted_scene_ids=[item.scene_id for item in assembled.scene_order],
+            accepted_scene_count=len(assembled.scene_order),
+            summary=assembled.summary,
+            hook=assembled.hook,
+            summary_source="finalized_chapter",
+            key_turns=[assembled.hook] if assembled.hook else [],
+            last_scene_id=last_scene.scene_id if last_scene else None,
+            last_scene_no=last_scene.scene_no if last_scene else None,
+            updated_from_draft_id=last_scene.accepted_draft_id if last_scene else None,
+            updated_at=utc_now(),
+        )
+        document.items.append(chapter_item)
+        document.items = sorted(document.items, key=lambda value: (value.chapter_no, value.chapter_id))
+        document.version += 1
+        document.updated_at = utc_now()
+        self._write_chapter_summaries(slug, document)
+        return chapter_item
 
     def read_accepted_scenes(self, slug: str, project_id: str) -> AcceptedSceneMemoryDocument:
         path = self.paths.accepted_scenes_memory_path(slug)
@@ -212,3 +243,9 @@ class MemoryService:
         if not text:
             return title
         return text[:120]
+
+    def _read_chapter_assembled(self, slug: str, chapter_id: str) -> ChapterAssembledDocument | None:
+        path = self.paths.chapter_assembled_path(slug, chapter_id)
+        if not self.file_repository.exists(path):
+            return None
+        return ChapterAssembledDocument.model_validate(self.file_repository.read_json(path))

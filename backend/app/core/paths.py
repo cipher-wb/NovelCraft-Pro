@@ -91,11 +91,20 @@ class AppPaths:
     def scene_drafts_root(self, slug: str) -> Path:
         return self.drafts_dir(slug) / "scenes"
 
+    def chapter_drafts_root(self, slug: str) -> Path:
+        return self.drafts_dir(slug) / "chapters"
+
     def scene_drafts_dir(self, slug: str, scene_id: str) -> Path:
         return self.scene_drafts_root(slug) / scene_id
 
+    def chapter_drafts_dir(self, slug: str, chapter_id: str) -> Path:
+        return self.chapter_drafts_root(slug) / chapter_id
+
     def scene_draft_manifest_path(self, slug: str, scene_id: str) -> Path:
         return self.scene_drafts_dir(slug, scene_id) / "manifest.json"
+
+    def chapter_assembled_path(self, slug: str, chapter_id: str) -> Path:
+        return self.chapter_drafts_dir(slug, chapter_id) / "assembled.json"
 
     def scene_draft_path(self, slug: str, scene_id: str, draft_no: int) -> Path:
         return self.scene_drafts_dir(slug, scene_id) / f"draft-{draft_no:03d}.json"
@@ -106,8 +115,14 @@ class AppPaths:
     def scene_checks_dir(self, slug: str, scene_id: str) -> Path:
         return self.scene_drafts_dir(slug, scene_id) / "checks"
 
+    def chapter_checks_dir(self, slug: str, chapter_id: str) -> Path:
+        return self.chapter_drafts_dir(slug, chapter_id) / "checks"
+
     def scene_draft_check_report_path(self, slug: str, scene_id: str, draft_id: str) -> Path:
         return self.scene_checks_dir(slug, scene_id) / f"{draft_id}.json"
+
+    def chapter_check_latest_path(self, slug: str, chapter_id: str) -> Path:
+        return self.chapter_checks_dir(slug, chapter_id) / "latest.json"
 
     def memory_dir(self, slug: str) -> Path:
         return self.project_root(slug) / "memory"

@@ -151,6 +151,7 @@ class ChapterSummaryMemoryItem(DomainModel):
     accepted_scene_ids: list[str] = Field(default_factory=list)
     accepted_scene_count: int = 0
     summary: str = ""
+    hook: str = ""
     summary_source: str = "accepted_scene_rollup"
     key_turns: list[str] = Field(default_factory=list)
     last_scene_id: str | None = None
@@ -260,6 +261,49 @@ class RepairMetadata(DomainModel):
     selected_warning_issue_ids: list[str] = Field(default_factory=list)
     repair_strategy_version: str = "targeted_repair_v1"
     repair_summary: str = ""
+
+
+class ChapterAssembledSourceVersions(DomainModel):
+    volume_version: int = 0
+    chapter_version: int = 0
+    scene_versions: dict[str, int] = Field(default_factory=dict)
+    accepted_draft_ids: dict[str, str] = Field(default_factory=dict)
+
+
+class ChapterSceneOrderItem(DomainModel):
+    scene_id: str
+    scene_no: int
+    accepted_draft_id: str
+
+
+class ChapterBasicStats(DomainModel):
+    scene_count: int = 0
+    accepted_scene_count: int = 0
+    character_count: int = 0
+    paragraph_count: int = 0
+    char_count: int = 0
+
+
+class ChapterAssembledDocument(DomainModel):
+    project_id: str
+    volume_id: str
+    chapter_id: str
+    chapter_no: int
+    version: int = 0
+    status: str = "assembled"
+    updated_at: datetime
+    source_versions: ChapterAssembledSourceVersions = Field(default_factory=ChapterAssembledSourceVersions)
+    scene_order: list[ChapterSceneOrderItem] = Field(default_factory=list)
+    content_md: str = ""
+    summary: str = ""
+    hook: str = ""
+    basic_stats: ChapterBasicStats = Field(default_factory=ChapterBasicStats)
+    latest_check_report_path: str | None = None
+    last_check_status: str | None = None
+    last_check_blocker_count: int = 0
+    last_check_warning_count: int = 0
+    finalized_at: datetime | None = None
+    finalized_from_assembly_version: int | None = None
 
 
 class SceneDraft(DomainModel):

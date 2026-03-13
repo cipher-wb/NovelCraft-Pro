@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+data/
+
+smoke-data/
+smoke-projects/
+test_sandbox/
+testcache/
+testtemp/
+
+.tmp/
+pytest-cache-files-*/
