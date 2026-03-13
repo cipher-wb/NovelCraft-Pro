@@ -15,7 +15,9 @@ from backend.app.core.dependencies import (
     get_repair_service,
     get_retrieval_service,
     get_scene_draft_service,
+    get_style_service,
     get_sqlite_repository,
+    get_voice_constraint_builder,
 )
 from backend.app.domain.models.writing import SceneDraftManifest
 from backend.app.schemas.checks import DraftCheckReportResponse
@@ -32,8 +34,17 @@ def _build_services(settings):
     sqlite_repository = get_sqlite_repository(paths)
     bible_service = get_bible_service(paths, file_repository, sqlite_repository)
     planner_service = get_planner_service(paths, file_repository, sqlite_repository, bible_service)
+    style_service = get_style_service(paths, file_repository, sqlite_repository)
+    voice_constraint_builder = get_voice_constraint_builder(style_service)
     retrieval_service = get_retrieval_service(paths, file_repository, sqlite_repository, planner_service)
-    context_bundle_service = get_context_bundle_service(paths, file_repository, bible_service, planner_service, retrieval_service)
+    context_bundle_service = get_context_bundle_service(
+        paths,
+        file_repository,
+        bible_service,
+        planner_service,
+        retrieval_service,
+        voice_constraint_builder,
+    )
     memory_service = get_memory_service(paths, file_repository, bible_service)
     checks_service = get_checks_service(paths, file_repository, sqlite_repository, bible_service, planner_service, context_bundle_service)
     llm_gateway = get_llm_gateway(settings)
@@ -46,6 +57,7 @@ def _build_services(settings):
         context_bundle_service,
         memory_service,
         checks_service,
+        style_service,
         llm_gateway,
     )
     repair_service = get_repair_service(
@@ -56,6 +68,7 @@ def _build_services(settings):
         draft_service,
         context_bundle_service,
         checks_service,
+        style_service,
         llm_gateway,
     )
     return draft_service, checks_service, repair_service

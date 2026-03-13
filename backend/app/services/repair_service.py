@@ -16,6 +16,7 @@ from backend.app.services.context_bundle_service import ContextBundleService
 from backend.app.services.exceptions import ConflictError
 from backend.app.services.planner_service import PlannerService
 from backend.app.services.scene_draft_service import SceneDraftService
+from backend.app.services.style_service import StyleService
 
 
 class RepairService:
@@ -28,6 +29,7 @@ class RepairService:
         scene_draft_service: SceneDraftService,
         context_bundle_service: ContextBundleService,
         checks_service: ChecksService,
+        style_service: StyleService | None,
         llm_gateway,
     ) -> None:
         self.paths = paths
@@ -37,6 +39,7 @@ class RepairService:
         self.scene_draft_service = scene_draft_service
         self.context_bundle_service = context_bundle_service
         self.checks_service = checks_service
+        self.style_service = style_service
         self.llm_gateway = llm_gateway
 
     def repair_draft(self, project_id: str, draft_id: str, issue_ids: list[str] | None = None) -> SceneDraft:
@@ -198,7 +201,7 @@ class RepairService:
                 raise ValueError("issue_ids must reference open issues from the latest report.")
             filtered = [issue for issue in open_issues if issue.issue_id in requested]
         else:
-            filtered = open_issues
+            filtered = [issue for issue in open_issues if issue.issue_type != "style_constraint"]
         blockers = [issue for issue in filtered if issue.severity == "blocker"]
         warnings = [issue for issue in filtered if issue.severity == "warning"]
         return blockers + warnings
@@ -217,11 +220,20 @@ class RepairService:
         issues: list[ConsistencyIssue],
     ) -> tuple[str, str]:
         if isinstance(self.llm_gateway, MockLLMGateway):
-            return self._apply_mock_targeted_repair(source, bundle, scene, issues)
-        try:
-            return self._apply_openai_targeted_repair(source, bundle, scene, issues)
-        except Exception:
-            return self._apply_mock_targeted_repair(source, bundle, scene, issues)
+            content_md, summary = self._apply_mock_targeted_repair(source, bundle, scene, issues)
+        else:
+            try:
+                content_md, summary = self._apply_openai_targeted_repair(source, bundle, scene, issues)
+            except Exception:
+                content_md, summary = self._apply_mock_targeted_repair(source, bundle, scene, issues)
+        if self.style_service is not None:
+            content_md, summary = self.style_service.sanitize_text(
+                content_md,
+                summary,
+                bundle.style_constraints,
+                protected_phrases=self.scene_draft_service._protected_phrases(bundle),
+            )
+        return content_md, summary
 
     def _apply_mock_targeted_repair(
         self,

@@ -17,6 +17,7 @@ from backend.app.services.context_bundle_service import ContextBundleService
 from backend.app.services.exceptions import ConflictError
 from backend.app.services.memory_service import MemoryService
 from backend.app.services.planner_service import PlannerService
+from backend.app.services.style_service import StyleService
 
 
 class SceneDraftService:
@@ -30,6 +31,7 @@ class SceneDraftService:
         context_bundle_service: ContextBundleService,
         memory_service: MemoryService,
         checks_service: ChecksService,
+        style_service: StyleService | None,
         llm_gateway,
     ) -> None:
         self.paths = paths
@@ -40,6 +42,7 @@ class SceneDraftService:
         self.context_bundle_service = context_bundle_service
         self.memory_service = memory_service
         self.checks_service = checks_service
+        self.style_service = style_service
         self.llm_gateway = llm_gateway
 
     def generate(self, project_id: str, scene_id: str, mode: str) -> SceneDraft:
@@ -261,45 +264,70 @@ class SceneDraftService:
 
     def _generate_content(self, bundle: ContextBundle, mode: str) -> tuple[str, str]:
         if isinstance(self.llm_gateway, MockLLMGateway):
-            return self._generate_mock_content(bundle, mode)
-        payload = self.llm_gateway.generate_text(
-            GenerateRequest(
-                system_prompt="Return JSON with summary and content_md fields.",
-                prompt=self._build_generation_prompt(bundle, mode),
+            content_md, summary = self._generate_mock_content(bundle, mode)
+        else:
+            payload = self.llm_gateway.generate_text(
+                GenerateRequest(
+                    system_prompt="Return JSON with summary and content_md fields.",
+                    prompt=self._build_generation_prompt(bundle, mode),
+                )
             )
-        )
-        try:
-            parsed = json.loads(payload)
-            summary = str(parsed.get("summary", "")).strip() or self._deterministic_summary(bundle)
-            content_md = str(parsed.get("content_md", "")).strip()
-            if not content_md:
-                raise ValueError("Empty content")
-            return content_md, summary
-        except Exception:
-            return payload.strip(), self._deterministic_summary(bundle)
+            try:
+                parsed = json.loads(payload)
+                summary = str(parsed.get("summary", "")).strip() or self._deterministic_summary(bundle)
+                content_md = str(parsed.get("content_md", "")).strip()
+                if not content_md:
+                    raise ValueError("Empty content")
+            except Exception:
+                content_md, summary = payload.strip(), self._deterministic_summary(bundle)
+        if self.style_service is not None:
+            content_md, summary = self.style_service.sanitize_text(
+                content_md,
+                summary,
+                bundle.style_constraints,
+                protected_phrases=self._protected_phrases(bundle),
+            )
+        return content_md, summary
 
     def _generate_mock_content(self, bundle: ContextBundle, mode: str) -> tuple[str, str]:
         location_name = bundle.location_brief.name if bundle.location_brief else "未明地点"
         names = "、".join(item.name for item in bundle.character_briefs) or "无登场角色"
         previous = bundle.continuity.previous_accepted_scene_summary or "无前序 accepted 摘要"
+        burst = bundle.style_constraints.global_constraints.sentence_rhythm.burst_short_lines
+        payoff_direct = bundle.style_constraints.global_constraints.payoff_style.intensity == "direct"
         opener = "压强前推" if mode == "momentum" else "按提纲推进"
-        content_md = "\n".join(
-            [
-                f"# {bundle.scene_anchor.title}",
-                f"模式：{mode}",
-                f"承诺：{bundle.story_anchor.story_promise}",
-                f"章节目的：{bundle.chapter_anchor.purpose}",
-                f"地点：{location_name}",
-                f"角色：{names}",
-                f"连续性：{previous}",
-                f"场景目标：{bundle.scene_anchor.goal}",
-                f"阻碍：{bundle.scene_anchor.obstacle}",
-                f"转折：{bundle.scene_anchor.turning_point}",
-                f"结果：{bundle.scene_anchor.outcome}",
-                f"必含：{'、'.join(bundle.scene_anchor.must_include) if bundle.scene_anchor.must_include else '无'}",
-                f"正文：{opener}，围绕“{bundle.scene_anchor.goal}”展开，先遭遇“{bundle.scene_anchor.obstacle}”，随后在“{bundle.scene_anchor.turning_point}”发生变化，最终落到“{bundle.scene_anchor.outcome}”。",
-            ]
+        ending = "结果直接落到" if payoff_direct else "结果收束到"
+        body_line = (
+            f"正文：{opener}，围绕“{bundle.scene_anchor.goal}”展开，先遭遇“{bundle.scene_anchor.obstacle}”，"
+            f"随后在“{bundle.scene_anchor.turning_point}”发生变化，最终{ending}“{bundle.scene_anchor.outcome}”。"
         )
+        lines = [
+            f"# {bundle.scene_anchor.title}",
+            f"模式：{mode}",
+            f"承诺：{bundle.story_anchor.story_promise}",
+            f"章节目的：{bundle.chapter_anchor.purpose}",
+            f"地点：{location_name}",
+            f"角色：{names}",
+            f"连续性：{previous}",
+            f"场景目标：{bundle.scene_anchor.goal}",
+            f"阻碍：{bundle.scene_anchor.obstacle}",
+            f"转折：{bundle.scene_anchor.turning_point}",
+            f"结果：{bundle.scene_anchor.outcome}",
+            f"必含：{'、'.join(bundle.scene_anchor.must_include) if bundle.scene_anchor.must_include else '无'}",
+        ]
+        if burst:
+            lines.extend(
+                [
+                    f"正文：{opener}。",
+                    f"先奔着“{bundle.scene_anchor.goal}”去。",
+                    f"先撞上“{bundle.scene_anchor.obstacle}”。",
+                    f"再在“{bundle.scene_anchor.turning_point}”翻面。",
+                    f"{ending}“{bundle.scene_anchor.outcome}”。",
+                ]
+            )
+        else:
+            lines.append(body_line)
+        content_md = "\n".join(lines)
         return content_md, self._deterministic_summary(bundle)
 
     def _deterministic_summary(self, bundle: ContextBundle) -> str:
@@ -321,10 +349,20 @@ class SceneDraftService:
                 "location_brief": bundle.location_brief.model_dump(mode="json") if bundle.location_brief else None,
                 "power_brief": bundle.power_brief.model_dump(mode="json") if bundle.power_brief else None,
                 "continuity": bundle.continuity.model_dump(mode="json"),
+                "style_constraints": bundle.style_constraints.model_dump(mode="json"),
                 "retrieved_memory": bundle.retrieved_memory.model_dump(mode="json"),
             },
             ensure_ascii=False,
         )
+
+    def _protected_phrases(self, bundle: ContextBundle) -> set[str]:
+        protected = {phrase for phrase in [*bundle.scene_anchor.must_include, bundle.scene_anchor.goal, bundle.scene_anchor.turning_point, bundle.scene_anchor.outcome] if phrase}
+        for brief in bundle.character_briefs:
+            if brief.is_protagonist and brief.name:
+                protected.add(brief.name)
+        if bundle.location_brief and bundle.location_brief.name:
+            protected.add(bundle.location_brief.name)
+        return protected
 
     def _manifest_item_from_draft(self, draft: SceneDraft) -> SceneDraftManifestItem:
         return SceneDraftManifestItem(

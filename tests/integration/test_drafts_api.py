@@ -204,6 +204,90 @@ def test_scene_studio_page_is_available(client: TestClient) -> None:
     assert response.status_code == 200
     assert "Repair Draft" in response.text
 
+
+def test_generate_and_repair_include_style_constraints(client: TestClient, build_ready_scene_project) -> None:
+    import json
+
+    project = build_ready_scene_project(confirm_scene=True)
+    voice_profile_path = _project_root(project["slug"]) / "bible" / "voice_profile.json"
+    voice_profile_path.write_text(
+        json.dumps(
+            {
+                "project_id": project["project_id"],
+                "version": 1,
+                "updated_at": "2026-03-13T00:00:00Z",
+                "enabled": True,
+                "profile_name": "风格测试",
+                "global_constraints": {
+                    "sentence_rhythm": {
+                        "baseline": "short",
+                        "soft_max_sentence_chars": 20,
+                        "burst_short_lines": True,
+                    },
+                    "paragraph_rhythm": {
+                        "preferred_min_sentences": 1,
+                        "preferred_max_sentences": 2,
+                        "soft_max_sentences": 3,
+                    },
+                    "banned_phrases": ["按提纲推进"],
+                    "narrative_habits": {
+                        "narration_person": "third_limited",
+                        "exposition_density": "low",
+                        "inner_monologue_density": "low",
+                        "dialogue_tag_style": "simple",
+                    },
+                    "payoff_style": {
+                        "intensity": "direct",
+                        "prefer_action_before_reaction": True,
+                        "prefer_concrete_gain": True,
+                        "avoid_empty_hype": True,
+                    },
+                },
+                "character_voice_profiles": [],
+                "notes": "",
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    generated = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{project['scene_id']}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert generated.status_code == 201
+    assert generated.json()["context_bundle"]["style_constraints"]["enabled"] is True
+    assert "按提纲推进" not in generated.json()["draft"]["content_md"]
+
+    draft_id = generated.json()["draft"]["draft_id"]
+    draft_path = _project_root(project["slug"]) / generated.json()["draft"]["draft_path"]
+    payload = json.loads(draft_path.read_text(encoding="utf-8"))
+    payload["content_md"] = "空白文本。"
+    payload["summary"] = "空白摘要。"
+    payload["updated_at"] = "2026-03-12T12:00:00+00:00"
+    draft_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    repaired = client.post(f"/api/projects/{project['project_id']}/drafts/{draft_id}/repair")
+    assert repaired.status_code == 200
+    assert repaired.json()["context_bundle"]["style_constraints"]["enabled"] is True
+
+
+def test_generate_degrades_when_voice_profile_file_is_corrupt(client: TestClient, build_ready_scene_project) -> None:
+    project = build_ready_scene_project(confirm_scene=True)
+    voice_profile_path = _project_root(project["slug"]) / "bible" / "voice_profile.json"
+    voice_profile_path.write_text("{broken json", encoding="utf-8")
+
+    generated = client.post(
+        f"/api/projects/{project['project_id']}/drafts/scenes/{project['scene_id']}/generate",
+        json={"mode": "outline_strict"},
+    )
+    assert generated.status_code == 201
+    style_constraints = generated.json()["context_bundle"]["style_constraints"]
+    assert style_constraints["enabled"] is False
+    assert style_constraints["character_voice_briefs"] == []
+    assert style_constraints["warnings"]
+
 def test_accept_preflight_reruns_checks_after_memory_changes(client: TestClient, build_ready_scene_project) -> None:
     project = build_ready_scene_project(confirm_scene=True)
     second_scene_id = project["scene_ids"][1]

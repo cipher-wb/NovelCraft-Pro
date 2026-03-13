@@ -17,6 +17,8 @@ from backend.app.services.project_service import ProjectService
 from backend.app.services.repair_service import RepairService
 from backend.app.services.retrieval_service import RetrievalService
 from backend.app.services.scene_draft_service import SceneDraftService
+from backend.app.services.style_service import StyleService
+from backend.app.services.voice_constraint_builder import VoiceConstraintBuilder
 
 
 def get_app_settings() -> Settings:
@@ -102,6 +104,18 @@ def get_memory_service(paths: AppPaths, file_repository: FileRepository, bible_s
     return MemoryService(paths, file_repository, bible_service)
 
 
+def get_style_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+) -> StyleService:
+    return StyleService(paths, file_repository, sqlite_repository)
+
+
+def get_voice_constraint_builder(style_service: StyleService) -> VoiceConstraintBuilder:
+    return VoiceConstraintBuilder(style_service)
+
+
 
 def get_retrieval_service(
     paths: AppPaths,
@@ -119,8 +133,9 @@ def get_context_bundle_service(
     bible_service: BibleService,
     planner_service: PlannerService,
     retrieval_service: RetrievalService,
+    voice_constraint_builder: VoiceConstraintBuilder,
 ) -> ContextBundleService:
-    return ContextBundleService(paths, file_repository, bible_service, planner_service, retrieval_service)
+    return ContextBundleService(paths, file_repository, bible_service, planner_service, retrieval_service, voice_constraint_builder)
 
 
 
@@ -145,6 +160,7 @@ def get_scene_draft_service(
     context_bundle_service: ContextBundleService,
     memory_service: MemoryService,
     checks_service: ChecksService,
+    style_service: StyleService,
     llm_gateway,
 ) -> SceneDraftService:
     return SceneDraftService(
@@ -156,6 +172,7 @@ def get_scene_draft_service(
         context_bundle_service,
         memory_service,
         checks_service,
+        style_service,
         llm_gateway,
     )
 
@@ -169,6 +186,7 @@ def get_repair_service(
     scene_draft_service: SceneDraftService,
     context_bundle_service: ContextBundleService,
     checks_service: ChecksService,
+    style_service: StyleService,
     llm_gateway,
 ) -> RepairService:
     return RepairService(
@@ -179,5 +197,6 @@ def get_repair_service(
         scene_draft_service,
         context_bundle_service,
         checks_service,
+        style_service,
         llm_gateway,
     )

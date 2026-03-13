@@ -14,6 +14,7 @@ from backend.app.services.check_rule_evaluators import (
     CharacterConsistencyEvaluator,
     CheckInputContext,
     SceneAlignmentEvaluator,
+    StyleConstraintEvaluator,
     TimelineOrderEvaluator,
     WorldPowerConflictEvaluator,
 )
@@ -43,6 +44,7 @@ class ChecksService:
             CharacterConsistencyEvaluator(),
             TimelineOrderEvaluator(),
             WorldPowerConflictEvaluator(),
+            StyleConstraintEvaluator(),
         ]
 
     def run_for_draft(self, project_id: str, draft_id: str, trigger: str) -> SceneDraftCheckReport:

@@ -16,6 +16,8 @@ def test_context_bundle_includes_retrieved_memory_and_keeps_compact_shape(servic
     )
     from backend.app.services.context_bundle_service import ContextBundleService
     from backend.app.services.retrieval_service import RetrievalService
+    from backend.app.services.style_service import StyleService
+    from backend.app.services.voice_constraint_builder import VoiceConstraintBuilder
 
     manifest = seeded["manifest"]
     paths = seeded["paths"]
@@ -112,13 +114,25 @@ def test_context_bundle_includes_retrieved_memory_and_keeps_compact_shape(servic
     )
 
     retrieval_service = RetrievalService(paths, file_repository, sqlite_repository, planner_service)
-    service = ContextBundleService(paths, file_repository, bible_service, planner_service, retrieval_service)
+    style_service = StyleService(paths, file_repository, sqlite_repository)
+    voice_constraint_builder = VoiceConstraintBuilder(style_service)
+    service = ContextBundleService(
+        paths,
+        file_repository,
+        bible_service,
+        planner_service,
+        retrieval_service,
+        voice_constraint_builder,
+    )
     bundle = service.build(manifest.project_id, second_scene.scene_id)
 
     payload = bundle.model_dump(mode="python")
     assert bundle.continuity.previous_accepted_scene_summary == "前一场 accepted 摘要"
     assert bundle.retrieved_memory.recent_scene_summaries[0].scene_id == seeded["scene_id"]
     assert bundle.retrieved_memory.character_state_briefs[0].character_id == "char_mc"
+    assert bundle.style_constraints.enabled is False
+    assert bundle.style_constraints.global_constraints.banned_phrases == []
+    assert bundle.style_constraints.character_voice_briefs == []
     assert "world_rules" not in payload
     assert "realm_ladder" not in payload
     assert "items" not in payload

@@ -58,6 +58,9 @@ class AppPaths:
     def power_system_path(self, slug: str) -> Path:
         return self.bible_dir(slug) / "power_system.json"
 
+    def voice_profile_path(self, slug: str) -> Path:
+        return self.bible_dir(slug) / "voice_profile.json"
+
     def plans_dir(self, slug: str) -> Path:
         return self.project_root(slug) / "plans"
 

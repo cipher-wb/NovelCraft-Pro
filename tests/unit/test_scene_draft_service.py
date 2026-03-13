@@ -10,6 +10,8 @@ def _build_draft_service(seeded):
     from backend.app.services.memory_service import MemoryService
     from backend.app.services.retrieval_service import RetrievalService
     from backend.app.services.scene_draft_service import SceneDraftService
+    from backend.app.services.style_service import StyleService
+    from backend.app.services.voice_constraint_builder import VoiceConstraintBuilder
 
     paths = seeded["paths"]
     file_repository = seeded["file_repository"]
@@ -18,8 +20,17 @@ def _build_draft_service(seeded):
     bible_service = seeded["bible_service"]
     llm_gateway = seeded["llm_gateway"]
 
+    style_service = StyleService(paths, file_repository, sqlite_repository)
+    voice_constraint_builder = VoiceConstraintBuilder(style_service)
     retrieval_service = RetrievalService(paths, file_repository, sqlite_repository, planner_service)
-    context_service = ContextBundleService(paths, file_repository, bible_service, planner_service, retrieval_service)
+    context_service = ContextBundleService(
+        paths,
+        file_repository,
+        bible_service,
+        planner_service,
+        retrieval_service,
+        voice_constraint_builder,
+    )
     checks_service = ChecksService(paths, file_repository, sqlite_repository, bible_service, planner_service, context_service)
     memory_service = MemoryService(paths, file_repository, bible_service)
     return SceneDraftService(
@@ -31,6 +42,7 @@ def _build_draft_service(seeded):
         context_service,
         memory_service,
         checks_service,
+        style_service,
         llm_gateway,
     )
 
@@ -88,6 +100,61 @@ def test_generate_is_deterministic_and_supersedes_previous_draft(service_contain
     assert second.last_check_status == "clean"
 
 
+def test_generate_includes_style_constraints_and_sanitizes_banned_phrases(service_container) -> None:
+    container = service_container
+    seeded = container["seed_project"](ready_scene=True, scene_count_hint=2)
+    manifest = seeded["manifest"]
+    paths = seeded["paths"]
+    file_repository = seeded["file_repository"]
+
+    voice_profile_path = paths.voice_profile_path(manifest.slug)
+    file_repository.write_json(
+        voice_profile_path,
+        {
+            "project_id": manifest.project_id,
+            "version": 1,
+            "updated_at": "2026-03-13T00:00:00Z",
+            "enabled": True,
+            "profile_name": "风格测试",
+            "global_constraints": {
+                "sentence_rhythm": {
+                    "baseline": "short",
+                    "soft_max_sentence_chars": 20,
+                    "burst_short_lines": True,
+                },
+                "paragraph_rhythm": {
+                    "preferred_min_sentences": 1,
+                    "preferred_max_sentences": 2,
+                    "soft_max_sentences": 3,
+                },
+                "banned_phrases": ["按提纲推进"],
+                "narrative_habits": {
+                    "narration_person": "third_limited",
+                    "exposition_density": "low",
+                    "inner_monologue_density": "low",
+                    "dialogue_tag_style": "simple",
+                },
+                "payoff_style": {
+                    "intensity": "direct",
+                    "prefer_action_before_reaction": True,
+                    "prefer_concrete_gain": True,
+                    "avoid_empty_hype": True,
+                },
+            },
+            "character_voice_profiles": [],
+            "notes": "",
+        },
+    )
+
+    draft_service = _build_draft_service(seeded)
+    draft = draft_service.generate(manifest.project_id, seeded["scene_id"], mode="outline_strict")
+    bundle = draft_service.get_context_bundle_for_draft(manifest.project_id, draft.draft_id)
+
+    assert bundle is not None
+    assert bundle.style_constraints.enabled is True
+    assert "按提纲推进" not in draft.content_md
+
+
 
 def test_accept_reject_are_strict_and_manifest_stays_consistent(service_container) -> None:
     from backend.app.services.exceptions import ConflictError
@@ -141,9 +208,20 @@ def test_repaired_draft_accept_and_reject_reuse_existing_mainline(service_contai
     from backend.app.services.memory_service import MemoryService
     from backend.app.services.repair_service import RepairService
     from backend.app.services.retrieval_service import RetrievalService
+    from backend.app.services.style_service import StyleService
+    from backend.app.services.voice_constraint_builder import VoiceConstraintBuilder
 
+    style_service = StyleService(paths, file_repository, seeded["sqlite_repository"])
+    voice_constraint_builder = VoiceConstraintBuilder(style_service)
     retrieval_service = RetrievalService(paths, file_repository, seeded["sqlite_repository"], seeded["planner_service"])
-    context_service = ContextBundleService(paths, file_repository, seeded["bible_service"], seeded["planner_service"], retrieval_service)
+    context_service = ContextBundleService(
+        paths,
+        file_repository,
+        seeded["bible_service"],
+        seeded["planner_service"],
+        retrieval_service,
+        voice_constraint_builder,
+    )
     checks_service = ChecksService(paths, file_repository, seeded["sqlite_repository"], seeded["bible_service"], seeded["planner_service"], context_service)
     repair_service = RepairService(
         paths,
@@ -153,6 +231,7 @@ def test_repaired_draft_accept_and_reject_reuse_existing_mainline(service_contai
         draft_service,
         context_service,
         checks_service,
+        style_service,
         seeded["llm_gateway"],
     )
 

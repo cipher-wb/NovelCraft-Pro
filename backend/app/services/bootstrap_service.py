@@ -7,6 +7,7 @@ from backend.app.core.paths import AppPaths
 from backend.app.domain.models.common import utc_now
 from backend.app.domain.models.planning import MasterOutlineDocument
 from backend.app.domain.models.project import CharacterDocument, PowerSystemDocument, StoryBible, WorldDocument
+from backend.app.domain.models.style import VoiceProfileDocument
 from backend.app.domain.models.writing import (
     AcceptedSceneMemoryDocument,
     ChapterSummariesMemoryDocument,
@@ -73,7 +74,10 @@ class BootstrapService:
             self.paths.power_system_path(slug),
             PowerSystemDocument(project_id=manifest_payload["project_id"], updated_at=now).model_dump(mode="json"),
         )
-        self.file_repository.write_json(bible_dir / "voice_profile.json", {})
+        self.file_repository.write_json(
+            self.paths.voice_profile_path(slug),
+            VoiceProfileDocument(project_id=manifest_payload["project_id"], updated_at=now).model_dump(mode="json"),
+        )
         self.file_repository.write_json(
             self.paths.master_outline_path(slug),
             MasterOutlineDocument(project_id=manifest_payload["project_id"], updated_at=now).model_dump(mode="json"),

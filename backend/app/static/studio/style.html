@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NovelCraft Pro Style Profile</title>
+  <style>
+    :root {
+      --bg: #f5f1ea;
+      --panel: #fffaf3;
+      --ink: #241d19;
+      --muted: #72675d;
+      --accent: #9a4f2c;
+      --border: #d8cab7;
+    }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: linear-gradient(180deg, #fff9ef 0%, var(--bg) 100%);
+      color: var(--ink);
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+    }
+    section {
+      margin-top: 16px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: 0 10px 30px rgba(36, 29, 25, 0.06);
+    }
+    h1, h2 { margin: 0 0 12px; }
+    label { display:block; margin: 10px 0 6px; font-weight: 700; }
+    input, select, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+    }
+    textarea { min-height: 92px; }
+    button {
+      margin-top: 12px;
+      margin-right: 8px;
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    pre {
+      white-space: pre-wrap;
+      overflow: auto;
+      background: #221d19;
+      color: #f7f2ed;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .hint { color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>NovelCraft Pro Style Profile</h1>
+  <p class="hint">Phase 5B 最小 style 配置页：启用/关闭 voice profile，并保存全局风格约束。</p>
+
+  <section>
+    <h2>1. 项目标识</h2>
+    <label for="projectId">Project ID</label>
+    <input id="projectId" placeholder="proj_xxx">
+    <button id="loadProfile">加载 Profile</button>
+  </section>
+
+  <section>
+    <h2>2. 全局风格</h2>
+    <div class="grid">
+      <div>
+        <label for="enabled">Enabled</label>
+        <select id="enabled">
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+      </div>
+      <div>
+        <label for="profileName">Profile Name</label>
+        <input id="profileName">
+      </div>
+      <div>
+        <label for="baseline">Sentence Baseline</label>
+        <select id="baseline">
+          <option value="short">short</option>
+          <option value="medium_short">medium_short</option>
+          <option value="medium">medium</option>
+        </select>
+      </div>
+      <div>
+        <label for="softMaxSentenceChars">Soft Max Sentence Chars</label>
+        <input id="softMaxSentenceChars" type="number" min="0">
+      </div>
+      <div>
+        <label for="softMaxSentences">Soft Max Sentences Per Paragraph</label>
+        <input id="softMaxSentences" type="number" min="0">
+      </div>
+      <div>
+        <label for="burstShortLines">Burst Short Lines</label>
+        <select id="burstShortLines">
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+      </div>
+      <div>
+        <label for="narrationPerson">Narration Person</label>
+        <select id="narrationPerson">
+          <option value="third_limited">third_limited</option>
+          <option value="first_person">first_person</option>
+        </select>
+      </div>
+      <div>
+        <label for="payoffIntensity">Payoff Intensity</label>
+        <select id="payoffIntensity">
+          <option value="direct">direct</option>
+          <option value="restrained">restrained</option>
+        </select>
+      </div>
+    </div>
+    <label for="bannedPhrases">Banned Phrases（每行一个）</label>
+    <textarea id="bannedPhrases"></textarea>
+    <button id="saveProfile">保存 Profile</button>
+  </section>
+
+  <section>
+    <h2>3. 调试输出</h2>
+    <pre id="debugOutput">等待加载...</pre>
+  </section>
+</main>
+<script>
+  const debugOutput = document.getElementById('debugOutput');
+
+  function setDebug(payload) {
+    debugOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  }
+
+  async function fetchJson(url, options = {}) {
+    const response = await fetch(url, options);
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(JSON.stringify(payload));
+    }
+    return payload;
+  }
+
+  function applyProfile(profile) {
+    document.getElementById('enabled').value = String(profile.enabled);
+    document.getElementById('profileName').value = profile.profile_name || '';
+    document.getElementById('baseline').value = profile.global_constraints.sentence_rhythm.baseline || 'medium_short';
+    document.getElementById('softMaxSentenceChars').value = profile.global_constraints.sentence_rhythm.soft_max_sentence_chars || 0;
+    document.getElementById('softMaxSentences').value = profile.global_constraints.paragraph_rhythm.soft_max_sentences || 0;
+    document.getElementById('burstShortLines').value = String(profile.global_constraints.sentence_rhythm.burst_short_lines);
+    document.getElementById('narrationPerson').value = profile.global_constraints.narrative_habits.narration_person || 'third_limited';
+    document.getElementById('payoffIntensity').value = profile.global_constraints.payoff_style.intensity || 'direct';
+    document.getElementById('bannedPhrases').value = (profile.global_constraints.banned_phrases || []).join('\n');
+  }
+
+  async function loadProfile() {
+    const projectId = document.getElementById('projectId').value.trim();
+    if (!projectId) {
+      setDebug('请先输入 project_id。');
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${projectId}/style/voice-profile`);
+      applyProfile(payload.profile);
+      setDebug(payload);
+    } catch (error) {
+      setDebug(String(error));
+    }
+  }
+
+  async function saveProfile() {
+    const projectId = document.getElementById('projectId').value.trim();
+    if (!projectId) {
+      setDebug('请先输入 project_id。');
+      return;
+    }
+    const payload = {
+      project_id: projectId,
+      version: 1,
+      updated_at: new Date().toISOString(),
+      enabled: document.getElementById('enabled').value === 'true',
+      profile_name: document.getElementById('profileName').value.trim(),
+      global_constraints: {
+        sentence_rhythm: {
+          baseline: document.getElementById('baseline').value,
+          soft_max_sentence_chars: Number(document.getElementById('softMaxSentenceChars').value || 0),
+          burst_short_lines: document.getElementById('burstShortLines').value === 'true'
+        },
+        paragraph_rhythm: {
+          preferred_min_sentences: 1,
+          preferred_max_sentences: 3,
+          soft_max_sentences: Number(document.getElementById('softMaxSentences').value || 0)
+        },
+        banned_phrases: document.getElementById('bannedPhrases').value
+          .split(/\r?\n/)
+          .map((item) => item.trim())
+          .filter(Boolean),
+        narrative_habits: {
+          narration_person: document.getElementById('narrationPerson').value,
+          exposition_density: 'low',
+          inner_monologue_density: 'low',
+          dialogue_tag_style: 'simple'
+        },
+        payoff_style: {
+          intensity: document.getElementById('payoffIntensity').value,
+          prefer_action_before_reaction: true,
+          prefer_concrete_gain: true,
+          avoid_empty_hype: true
+        }
+      },
+      character_voice_profiles: [],
+      notes: ''
+    };
+    try {
+      const response = await fetchJson(`/api/projects/${projectId}/style/voice-profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      applyProfile(response.profile);
+      setDebug(response);
+    } catch (error) {
+      setDebug(String(error));
+    }
+  }
+
+  document.getElementById('loadProfile').addEventListener('click', loadProfile);
+  document.getElementById('saveProfile').addEventListener('click', saveProfile);
+</script>
+</body>
+</html>

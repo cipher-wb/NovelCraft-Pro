@@ -16,6 +16,7 @@ from backend.app.services.check_rule_evaluators import (
     CharacterConsistencyEvaluator,
     CheckInputContext,
     SceneAlignmentEvaluator,
+    StyleConstraintEvaluator,
     TimelineOrderEvaluator,
     WorldPowerConflictEvaluator,
 )
@@ -139,6 +140,29 @@ def _build_input(
             "location_brief": {"location_id": "loc_target", "name": "云海市"},
             "power_brief": {"system_name": "修仙体系"},
             "continuity": {},
+            "style_constraints": {
+                "enabled": False,
+                "profile_name": "",
+                "global_constraints": {
+                    "sentence_rhythm": {"baseline": "", "soft_max_sentence_chars": 0, "burst_short_lines": False},
+                    "paragraph_rhythm": {"preferred_min_sentences": 0, "preferred_max_sentences": 0, "soft_max_sentences": 0},
+                    "banned_phrases": [],
+                    "narrative_habits": {
+                        "narration_person": "",
+                        "exposition_density": "",
+                        "inner_monologue_density": "",
+                        "dialogue_tag_style": "",
+                    },
+                    "payoff_style": {
+                        "intensity": "",
+                        "prefer_action_before_reaction": False,
+                        "prefer_concrete_gain": False,
+                        "avoid_empty_hype": False,
+                    },
+                },
+                "character_voice_briefs": [],
+                "warnings": [],
+            },
             "retrieved_memory": {
                 "recent_scene_summaries": [{"scene_id": "scene_000", "chapter_id": "chapter_0001", "scene_no": 3}],
                 "previous_chapter_summary": {"chapter_id": "chapter_prev", "chapter_no": 2},
@@ -209,3 +233,70 @@ def test_world_power_conflict_uses_canonical_locations_only() -> None:
     rule_ids = {issue.rule_id for issue in issues}
     assert "world.location.conflict" in rule_ids
     assert "power.realm.conflict" in rule_ids
+
+
+def test_style_constraint_evaluator_emits_warning_only_for_banned_phrase_and_rhythm() -> None:
+    bundle = ContextBundle.model_validate(
+        {
+            "context_bundle_id": "ctx_001",
+            "project_id": "proj_001",
+            "volume_id": "volume_001",
+            "chapter_id": "chapter_0001",
+            "scene_id": "scene_001",
+            "created_at": utc_now(),
+            "source_versions": {
+                "story_bible_version": 1,
+                "characters_version": 1,
+                "world_version": 1,
+                "power_system_version": 1,
+                "volume_version": 1,
+                "chapter_version": 1,
+                "scene_version": 1,
+            },
+            "story_anchor": {"title": "书名"},
+            "volume_anchor": {"volume_id": "volume_001", "volume_no": 1},
+            "chapter_anchor": {"chapter_id": "chapter_0001", "chapter_no": 1},
+            "scene_anchor": {"scene_id": "scene_001", "scene_no": 2},
+            "character_briefs": [],
+            "faction_briefs": [],
+            "location_brief": {"location_id": "loc_target", "name": "云海市"},
+            "power_brief": {"system_name": "修仙体系"},
+            "continuity": {},
+            "style_constraints": {
+                "enabled": True,
+                "profile_name": "风格",
+                "global_constraints": {
+                    "sentence_rhythm": {"baseline": "short", "soft_max_sentence_chars": 8, "burst_short_lines": True},
+                    "paragraph_rhythm": {"preferred_min_sentences": 1, "preferred_max_sentences": 2, "soft_max_sentences": 1},
+                    "banned_phrases": ["空气都安静了"],
+                    "narrative_habits": {
+                        "narration_person": "third_limited",
+                        "exposition_density": "low",
+                        "inner_monologue_density": "low",
+                        "dialogue_tag_style": "simple",
+                    },
+                    "payoff_style": {
+                        "intensity": "direct",
+                        "prefer_action_before_reaction": True,
+                        "prefer_concrete_gain": True,
+                        "avoid_empty_hype": True,
+                    },
+                },
+                "character_voice_briefs": [],
+                "warnings": [],
+            },
+            "retrieved_memory": {"recent_scene_summaries": [], "character_state_briefs": []},
+        }
+    )
+    issues = StyleConstraintEvaluator().evaluate(
+        _build_input(
+            content_md="空气都安静了。这个句子会非常非常长因为它完全没有收束。第二句。",
+            bundle=bundle,
+        )
+    )
+    rule_ids = {issue.rule_id for issue in issues}
+    severities = {issue.severity for issue in issues}
+    assert "style.banned_phrase.hit" in rule_ids
+    assert "style.sentence.too_long" in rule_ids
+    assert "style.paragraph.too_long" in rule_ids
+    assert severities == {"warning"}

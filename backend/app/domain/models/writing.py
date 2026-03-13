@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import Field
 
 from backend.app.domain.models.common import DomainModel
+from backend.app.domain.models.style import StyleConstraintBundle
 
 
 class StoryAnchor(DomainModel):
@@ -246,6 +247,7 @@ class ContextBundle(DomainModel):
     location_brief: LocationBrief | None = None
     power_brief: PowerBrief | None = None
     continuity: ContinuityBrief = Field(default_factory=ContinuityBrief)
+    style_constraints: StyleConstraintBundle = Field(default_factory=StyleConstraintBundle)
     retrieved_memory: RetrievedMemoryContext = Field(default_factory=RetrievedMemoryContext)
 
 

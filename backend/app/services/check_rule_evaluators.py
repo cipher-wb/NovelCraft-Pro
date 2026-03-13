@@ -12,6 +12,8 @@ from backend.app.domain.models.writing import ContextBundle
 
 _SPLIT_PATTERN = re.compile(r"[\s,，。！？!?:：;；、/\\\-()（）\[\]{}\"'“”‘’]+")
 _WHITESPACE_PATTERN = re.compile(r"\s+")
+_PARAGRAPH_BLANK_PATTERN = re.compile(r"\n\s*\n+")
+_TERMINAL_PUNCTUATION = "。！？!?；;"
 
 
 @dataclass(slots=True)
@@ -349,3 +351,92 @@ class WorldPowerConflictEvaluator(LiteralMatchingMixin):
                 )
             )
         return issues
+
+
+class StyleConstraintEvaluator(LiteralMatchingMixin):
+    rule_family = "style_constraint"
+
+    def evaluate(self, input_ctx: CheckInputContext) -> list[ConsistencyIssue]:
+        bundle = input_ctx.context_bundle
+        if bundle is None or not bundle.style_constraints.enabled:
+            return []
+
+        issues: list[ConsistencyIssue] = []
+        merged_text = f"{input_ctx.draft_summary}\n{input_ctx.draft_text}"
+        for phrase in bundle.style_constraints.global_constraints.banned_phrases:
+            if phrase and self._contains_literal_phrase(merged_text, phrase):
+                issues.append(
+                    self._build_issue(
+                        input_ctx,
+                        issue_type="style_constraint",
+                        rule_id="style.banned_phrase.hit",
+                        severity="warning",
+                        title="命中禁写表达",
+                        description="当前 draft 命中了 voice profile 中声明的禁写短语。",
+                        evidence_refs=[{"phrase": phrase}],
+                        suggested_fix=[f"移除或替换短语“{phrase}”。"],
+                    )
+                )
+
+        max_sentence_chars = bundle.style_constraints.global_constraints.sentence_rhythm.soft_max_sentence_chars
+        if max_sentence_chars > 0:
+            for paragraph_index, paragraph in enumerate(self._split_paragraphs(input_ctx.draft_text), start=1):
+                for sentence in self._split_sentences(paragraph):
+                    if self._char_count(sentence) > max_sentence_chars:
+                        issues.append(
+                            self._build_issue(
+                                input_ctx,
+                                issue_type="style_constraint",
+                                rule_id="style.sentence.too_long",
+                                severity="warning",
+                                title="句子过长",
+                                description="当前句子的字数超过 voice profile 的 soft_max_sentence_chars。",
+                                evidence_refs=[{"paragraph_index": str(paragraph_index), "sentence": sentence}],
+                                suggested_fix=["压缩句子长度或拆分长句。"],
+                            )
+                        )
+
+        max_sentences = bundle.style_constraints.global_constraints.paragraph_rhythm.soft_max_sentences
+        if max_sentences > 0:
+            for paragraph_index, paragraph in enumerate(self._split_paragraphs(input_ctx.draft_text), start=1):
+                sentences = self._split_sentences(paragraph)
+                if len(sentences) > max_sentences:
+                    issues.append(
+                        self._build_issue(
+                            input_ctx,
+                            issue_type="style_constraint",
+                            rule_id="style.paragraph.too_long",
+                            severity="warning",
+                            title="段落过长",
+                            description="当前段落的句数超过 voice profile 的 soft_max_sentences。",
+                            evidence_refs=[{"paragraph_index": str(paragraph_index), "sentence_count": str(len(sentences))}],
+                            suggested_fix=["拆分长段，保持段落节奏更紧。"],
+                        )
+                    )
+        return issues
+
+    def _split_paragraphs(self, text: str) -> list[str]:
+        normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+        if not normalized:
+            return []
+        return [chunk.strip() for chunk in _PARAGRAPH_BLANK_PATTERN.split(normalized) if chunk.strip()]
+
+    def _split_sentences(self, paragraph: str) -> list[str]:
+        if not paragraph.strip():
+            return []
+        current: list[str] = []
+        sentences: list[str] = []
+        for char in paragraph:
+            current.append(char)
+            if char in _TERMINAL_PUNCTUATION:
+                sentence = "".join(current).strip()
+                if sentence:
+                    sentences.append(sentence)
+                current = []
+        tail = "".join(current).strip()
+        if tail:
+            sentences.append(tail)
+        return sentences or [paragraph.strip()]
+
+    def _char_count(self, sentence: str) -> int:
+        return len(_WHITESPACE_PATTERN.sub("", sentence))

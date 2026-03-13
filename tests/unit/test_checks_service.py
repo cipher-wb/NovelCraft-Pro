@@ -12,6 +12,8 @@ def _build_services(seeded):
     from backend.app.services.memory_service import MemoryService
     from backend.app.services.retrieval_service import RetrievalService
     from backend.app.services.scene_draft_service import SceneDraftService
+    from backend.app.services.style_service import StyleService
+    from backend.app.services.voice_constraint_builder import VoiceConstraintBuilder
 
     paths = seeded["paths"]
     file_repository = seeded["file_repository"]
@@ -20,8 +22,17 @@ def _build_services(seeded):
     bible_service = seeded["bible_service"]
     llm_gateway = seeded["llm_gateway"]
 
+    style_service = StyleService(paths, file_repository, sqlite_repository)
+    voice_constraint_builder = VoiceConstraintBuilder(style_service)
     retrieval_service = RetrievalService(paths, file_repository, sqlite_repository, planner_service)
-    context_service = ContextBundleService(paths, file_repository, bible_service, planner_service, retrieval_service)
+    context_service = ContextBundleService(
+        paths,
+        file_repository,
+        bible_service,
+        planner_service,
+        retrieval_service,
+        voice_constraint_builder,
+    )
     checks_service = ChecksService(paths, file_repository, sqlite_repository, bible_service, planner_service, context_service)
     memory_service = MemoryService(paths, file_repository, bible_service)
     draft_service = SceneDraftService(
@@ -33,6 +44,7 @@ def _build_services(seeded):
         context_service,
         memory_service,
         checks_service,
+        style_service,
         llm_gateway,
     )
     return checks_service, draft_service

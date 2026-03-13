@@ -22,6 +22,7 @@ from backend.app.repositories.file_repository import FileRepository
 from backend.app.services.bible_service import BibleService
 from backend.app.services.planner_service import PlannerService
 from backend.app.services.retrieval_service import RetrievalService
+from backend.app.services.voice_constraint_builder import VoiceConstraintBuilder
 
 
 class ContextBundleService:
@@ -32,12 +33,14 @@ class ContextBundleService:
         bible_service: BibleService,
         planner_service: PlannerService,
         retrieval_service: RetrievalService,
+        voice_constraint_builder: VoiceConstraintBuilder | None = None,
     ) -> None:
         self.paths = paths
         self.file_repository = file_repository
         self.bible_service = bible_service
         self.planner_service = planner_service
         self.retrieval_service = retrieval_service
+        self.voice_constraint_builder = voice_constraint_builder
 
     def build(self, project_id: str, scene_id: str) -> ContextBundle:
         project = self.bible_service._require_project(project_id)
@@ -51,6 +54,33 @@ class ContextBundleService:
         location = next((item for item in aggregate.world.locations if item.location_id == scene.location_id), None)
         retrieved_memory = self.retrieval_service.retrieve_for_scene(project_id, scene_id)
         previous_summary = retrieved_memory.recent_scene_summaries[0] if retrieved_memory.recent_scene_summaries else None
+        style_constraints = (
+            self.voice_constraint_builder.build(project_id, scene.character_ids)
+            if self.voice_constraint_builder is not None
+            else {
+                "enabled": False,
+                "profile_name": "",
+                "global_constraints": {
+                    "sentence_rhythm": {"baseline": "", "soft_max_sentence_chars": 0, "burst_short_lines": False},
+                    "paragraph_rhythm": {"preferred_min_sentences": 0, "preferred_max_sentences": 0, "soft_max_sentences": 0},
+                    "banned_phrases": [],
+                    "narrative_habits": {
+                        "narration_person": "",
+                        "exposition_density": "",
+                        "inner_monologue_density": "",
+                        "dialogue_tag_style": "",
+                    },
+                    "payoff_style": {
+                        "intensity": "",
+                        "prefer_action_before_reaction": False,
+                        "prefer_concrete_gain": False,
+                        "avoid_empty_hype": False,
+                    },
+                },
+                "character_voice_briefs": [],
+                "warnings": [],
+            }
+        )
 
         return ContextBundle(
             context_bundle_id=f"ctx_{uuid.uuid4().hex[:12]}",
@@ -131,6 +161,7 @@ class ContextBundleService:
                 previous_accepted_scene_id=previous_summary.scene_id if previous_summary else None,
                 previous_accepted_scene_summary=previous_summary.summary if previous_summary else "",
             ),
+            style_constraints=style_constraints,
             retrieved_memory=retrieved_memory,
         )
 
