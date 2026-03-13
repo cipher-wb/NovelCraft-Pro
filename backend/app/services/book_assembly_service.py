@@ -15,6 +15,7 @@ from backend.app.domain.models.writing import (
 )
 from backend.app.repositories.file_repository import FileRepository
 from backend.app.repositories.sqlite_repository import SQLiteRepository
+from backend.app.services.book_continuity_checks_service import BookContinuityChecksService
 from backend.app.services.book_checks_service import BookChecksService
 from backend.app.services.exceptions import ConflictError
 from backend.app.services.memory_service import MemoryService
@@ -31,6 +32,7 @@ class BookAssemblyService:
         volume_assembly_service,
         memory_service: MemoryService,
         book_checks_service: BookChecksService,
+        book_continuity_checks_service: BookContinuityChecksService,
     ) -> None:
         self.paths = paths
         self.file_repository = file_repository
@@ -39,6 +41,7 @@ class BookAssemblyService:
         self.volume_assembly_service = volume_assembly_service
         self.memory_service = memory_service
         self.book_checks_service = book_checks_service
+        self.book_continuity_checks_service = book_continuity_checks_service
 
     def assemble(self, project_id: str) -> BookAssembledDocument:
         project = self._require_project(project_id)
@@ -79,6 +82,7 @@ class BookAssemblyService:
         )
         self._write_assembled(slug, assembled)
         self.book_checks_service.run_for_book(project_id, assembled, trigger="assemble_auto")
+        self.book_continuity_checks_service.run_for_book(project_id, "assemble_auto")
         return self.get_assembled(project_id)
 
     def get_assembled(self, project_id: str) -> BookAssembledDocument:
@@ -109,6 +113,12 @@ class BookAssemblyService:
         assembled = self.get_assembled(project_id)
         if report.overall_status in {"blocked", "error"}:
             raise ConflictError("Book finalize blocked by latest book checks.")
+        if assembled.status == "stale":
+            raise ConflictError("Stale book must be re-assembled before finalize.")
+        continuity_report = self.book_continuity_checks_service.ensure_finalize_allowed(project_id)
+        if continuity_report.overall_status in {"blocked", "error"}:
+            raise ConflictError("Book finalize blocked by continuity checks.")
+        assembled = self.get_assembled(project_id)
         if assembled.status == "stale":
             raise ConflictError("Stale book must be re-assembled before finalize.")
 

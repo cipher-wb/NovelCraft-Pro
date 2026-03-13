@@ -500,6 +500,10 @@ class BookAssembledDocument(DomainModel):
     last_check_status: str | None = None
     last_check_blocker_count: int = 0
     last_check_warning_count: int = 0
+    latest_continuity_check_report_path: str | None = None
+    last_continuity_check_status: str | None = None
+    last_continuity_check_blocker_count: int = 0
+    last_continuity_check_warning_count: int = 0
     finalized_at: datetime | None = None
     finalized_from_assembly_version: int | None = None
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from backend.app.domain.models.issues import BookCheckReport
+from backend.app.domain.models.issues import BookCheckReport, BookContinuityCheckReport
 from backend.app.domain.models.writing import BookAssembledDocument
 
 
@@ -17,3 +17,9 @@ class BookCheckReportResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     report: BookCheckReport
+
+
+class BookContinuityCheckReportResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    report: BookContinuityCheckReport

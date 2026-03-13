@@ -10,6 +10,7 @@ from backend.app.schemas.project import CreateProjectRequest
 
 def _build_services(service_container):
     from backend.app.services.book_assembly_service import BookAssemblyService
+    from backend.app.services.book_continuity_checks_service import BookContinuityChecksService
     from backend.app.services.book_checks_service import BookChecksService
     from backend.app.services.chapter_assembly_service import ChapterAssemblyService
     from backend.app.services.chapter_checks_service import ChapterChecksService
@@ -76,6 +77,13 @@ def _build_services(service_container):
         volume_checks_service,
     )
     book_checks_service = BookChecksService(paths, file_repository, sqlite_repository, planner_service)
+    continuity_service = BookContinuityChecksService(
+        paths,
+        file_repository,
+        sqlite_repository,
+        bible_service,
+        planner_service,
+    )
     book_service = BookAssemblyService(
         paths,
         file_repository,
@@ -84,6 +92,7 @@ def _build_services(service_container):
         volume_service,
         memory_service,
         book_checks_service,
+        continuity_service,
     )
     return draft_service, chapter_service, volume_service, book_service, book_checks_service, memory_service
 

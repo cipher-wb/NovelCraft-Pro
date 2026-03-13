@@ -155,3 +155,33 @@ class BookCheckReport(DomainModel):
     warning_count: int = 0
     issues: list[ConsistencyIssue] = Field(default_factory=list)
     rule_summaries: list[CheckRuleSummary] = Field(default_factory=list)
+
+
+class BookContinuityCheckSourceVersions(DomainModel):
+    story_bible_version: int = 0
+    characters_version: int = 0
+    world_version: int = 0
+    power_system_version: int = 0
+    master_outline_version: int = 0
+    planned_volume_versions: dict[str, int] = Field(default_factory=dict)
+    finalized_volume_versions: dict[str, int] = Field(default_factory=dict)
+    book_assembled_version: int = 0
+    accepted_scenes_version: int = 0
+    chapter_summaries_version: int = 0
+    character_state_summaries_version: int = 0
+    volume_summaries_version: int = 0
+    book_summary_version: int = 0
+
+
+class BookContinuityCheckReport(DomainModel):
+    report_id: str
+    project_id: str
+    trigger: str
+    checker_version: str = "deterministic_v1"
+    created_at: datetime
+    source_versions: BookContinuityCheckSourceVersions
+    overall_status: str
+    blocker_count: int = 0
+    warning_count: int = 0
+    issues: list[ConsistencyIssue] = Field(default_factory=list)
+    rule_summaries: list[CheckRuleSummary] = Field(default_factory=list)

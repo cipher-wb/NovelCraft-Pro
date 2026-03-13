@@ -36,6 +36,7 @@
     <button id="loadBook">加载 Book</button>
     <button id="assembleBook">Assemble Book</button>
     <button id="recheckBook">Recheck</button>
+    <button id="recheckContinuity">Recheck Continuity</button>
     <button id="finalizeBook">Finalize</button>
   </section>
 
@@ -48,11 +49,17 @@
     <h2>3. Checks</h2>
     <pre id="checksOutput">等待检查结果...</pre>
   </section>
+
+  <section>
+    <h2>4. Continuity Checks</h2>
+    <pre id="continuityOutput">等待 continuity 检查结果...</pre>
+  </section>
 </main>
 <script>
   let currentProjectId = "";
   const assembledOutput = document.getElementById("assembledOutput");
   const checksOutput = document.getElementById("checksOutput");
+  const continuityOutput = document.getElementById("continuityOutput");
 
   async function fetchJson(url, options = {}) {
     const response = await fetch(url, options);
@@ -79,6 +86,12 @@
     } catch (error) {
       checksOutput.textContent = String(error);
     }
+    try {
+      const continuity = await fetchJson(`/api/projects/${currentProjectId}/book/continuity-checks/latest`);
+      continuityOutput.textContent = JSON.stringify(continuity, null, 2);
+    } catch (error) {
+      continuityOutput.textContent = String(error);
+    }
   }
 
   async function callBookAction(action) {
@@ -92,8 +105,13 @@
       if (payload.assembled) {
         assembledOutput.textContent = JSON.stringify(payload.assembled, null, 2);
         checksOutput.textContent = JSON.stringify(payload.check_report, null, 2);
+        await loadBook();
       } else if (payload.report) {
-        checksOutput.textContent = JSON.stringify(payload.report, null, 2);
+        if (action === "continuity-checks/recheck") {
+          continuityOutput.textContent = JSON.stringify(payload.report, null, 2);
+        } else {
+          checksOutput.textContent = JSON.stringify(payload.report, null, 2);
+        }
         await loadBook();
       }
     } catch (error) {
@@ -104,6 +122,7 @@
   document.getElementById("loadBook").addEventListener("click", loadBook);
   document.getElementById("assembleBook").addEventListener("click", () => callBookAction("assemble"));
   document.getElementById("recheckBook").addEventListener("click", () => callBookAction("checks/recheck"));
+  document.getElementById("recheckContinuity").addEventListener("click", () => callBookAction("continuity-checks/recheck"));
   document.getElementById("finalizeBook").addEventListener("click", () => callBookAction("finalize"));
 </script>
 </body>

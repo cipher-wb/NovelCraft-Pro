@@ -7,6 +7,7 @@ from backend.app.core.dependencies import (
     get_app_settings,
     get_bible_service,
     get_book_assembly_service,
+    get_book_continuity_checks_service,
     get_book_checks_service,
     get_chapter_assembly_service,
     get_chapter_checks_service,
@@ -25,7 +26,11 @@ from backend.app.core.dependencies import (
     get_volume_checks_service,
 )
 from backend.app.domain.models.writing import BookAssembledDocument
-from backend.app.schemas.books import BookAssemblyDetailResponse, BookCheckReportResponse
+from backend.app.schemas.books import (
+    BookAssemblyDetailResponse,
+    BookCheckReportResponse,
+    BookContinuityCheckReportResponse,
+)
 from backend.app.services.exceptions import ConflictError
 
 router = APIRouter(prefix="/api/projects/{project_id}/book", tags=["book"])
@@ -84,6 +89,13 @@ def _build_services(settings):
         volume_checks_service,
     )
     book_checks_service = get_book_checks_service(paths, file_repository, sqlite_repository, planner_service)
+    book_continuity_checks_service = get_book_continuity_checks_service(
+        paths,
+        file_repository,
+        sqlite_repository,
+        bible_service,
+        planner_service,
+    )
     book_service = get_book_assembly_service(
         paths,
         file_repository,
@@ -92,8 +104,9 @@ def _build_services(settings):
         volume_service,
         memory_service,
         book_checks_service,
+        book_continuity_checks_service,
     )
-    return book_service, book_checks_service
+    return book_service, book_checks_service, book_continuity_checks_service
 
 
 def _map_error(error: Exception) -> HTTPException:
@@ -108,7 +121,7 @@ def _map_error(error: Exception) -> HTTPException:
 
 @router.post("/assemble", response_model=BookAssemblyDetailResponse)
 def assemble_book(project_id: str, settings=Depends(get_app_settings)) -> BookAssemblyDetailResponse:
-    book_service, book_checks_service = _build_services(settings)
+    book_service, book_checks_service, _ = _build_services(settings)
     try:
         assembled = book_service.assemble(project_id)
         report = book_checks_service.get_latest_report(project_id)
@@ -119,7 +132,7 @@ def assemble_book(project_id: str, settings=Depends(get_app_settings)) -> BookAs
 
 @router.get("/assembled", response_model=BookAssembledDocument)
 def get_assembled_book(project_id: str, settings=Depends(get_app_settings)) -> BookAssembledDocument:
-    book_service, _ = _build_services(settings)
+    book_service, _, _ = _build_services(settings)
     try:
         return book_service.get_assembled(project_id)
     except Exception as error:
@@ -128,7 +141,7 @@ def get_assembled_book(project_id: str, settings=Depends(get_app_settings)) -> B
 
 @router.get("/checks/latest", response_model=BookCheckReportResponse)
 def get_latest_book_check_report(project_id: str, settings=Depends(get_app_settings)) -> BookCheckReportResponse:
-    _, book_checks_service = _build_services(settings)
+    _, book_checks_service, _ = _build_services(settings)
     try:
         report = book_checks_service.get_latest_report(project_id)
         if report is None:
@@ -140,7 +153,7 @@ def get_latest_book_check_report(project_id: str, settings=Depends(get_app_setti
 
 @router.post("/checks/recheck", response_model=BookCheckReportResponse)
 def recheck_book(project_id: str, settings=Depends(get_app_settings)) -> BookCheckReportResponse:
-    book_service, _ = _build_services(settings)
+    book_service, _, _ = _build_services(settings)
     try:
         report = book_service.recheck(project_id)
         return BookCheckReportResponse(report=report)
@@ -150,10 +163,38 @@ def recheck_book(project_id: str, settings=Depends(get_app_settings)) -> BookChe
 
 @router.post("/finalize", response_model=BookAssemblyDetailResponse)
 def finalize_book(project_id: str, settings=Depends(get_app_settings)) -> BookAssemblyDetailResponse:
-    book_service, book_checks_service = _build_services(settings)
+    book_service, book_checks_service, _ = _build_services(settings)
     try:
         assembled = book_service.finalize(project_id)
         report = book_checks_service.get_latest_report(project_id)
         return BookAssemblyDetailResponse(assembled=assembled, check_report=report)
+    except Exception as error:
+        raise _map_error(error) from error
+
+
+@router.get("/continuity-checks/latest", response_model=BookContinuityCheckReportResponse)
+def get_latest_book_continuity_check_report(
+    project_id: str,
+    settings=Depends(get_app_settings),
+) -> BookContinuityCheckReportResponse:
+    _, _, continuity_checks_service = _build_services(settings)
+    try:
+        report = continuity_checks_service.get_latest_report(project_id)
+        if report is None:
+            raise KeyError(project_id)
+        return BookContinuityCheckReportResponse(report=report)
+    except Exception as error:
+        raise _map_error(error) from error
+
+
+@router.post("/continuity-checks/recheck", response_model=BookContinuityCheckReportResponse)
+def recheck_book_continuity(
+    project_id: str,
+    settings=Depends(get_app_settings),
+) -> BookContinuityCheckReportResponse:
+    _, _, continuity_checks_service = _build_services(settings)
+    try:
+        report = continuity_checks_service.run_for_book(project_id, "manual_recheck")
+        return BookContinuityCheckReportResponse(report=report)
     except Exception as error:
         raise _map_error(error) from error

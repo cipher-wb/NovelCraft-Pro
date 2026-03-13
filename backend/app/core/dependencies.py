@@ -8,6 +8,7 @@ from backend.app.repositories.sqlite_repository import SQLiteRepository
 from backend.app.repositories.vector_repository import VectorRepository
 from backend.app.services.bible_service import BibleService
 from backend.app.services.book_assembly_service import BookAssemblyService
+from backend.app.services.book_continuity_checks_service import BookContinuityChecksService
 from backend.app.services.book_checks_service import BookChecksService
 from backend.app.services.bootstrap_service import BootstrapService
 from backend.app.services.chapter_assembly_service import ChapterAssemblyService
@@ -276,6 +277,16 @@ def get_book_checks_service(
     return BookChecksService(paths, file_repository, sqlite_repository, planner_service)
 
 
+def get_book_continuity_checks_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    bible_service: BibleService,
+    planner_service: PlannerService,
+) -> BookContinuityChecksService:
+    return BookContinuityChecksService(paths, file_repository, sqlite_repository, bible_service, planner_service)
+
+
 def get_book_assembly_service(
     paths: AppPaths,
     file_repository: FileRepository,
@@ -284,6 +295,7 @@ def get_book_assembly_service(
     volume_assembly_service: VolumeAssemblyService,
     memory_service: MemoryService,
     book_checks_service: BookChecksService,
+    book_continuity_checks_service: BookContinuityChecksService,
 ) -> BookAssemblyService:
     return BookAssemblyService(
         paths,
@@ -293,4 +305,5 @@ def get_book_assembly_service(
         volume_assembly_service,
         memory_service,
         book_checks_service,
+        book_continuity_checks_service,
     )
