@@ -112,3 +112,25 @@ class ChapterCheckReport(DomainModel):
     warning_count: int = 0
     issues: list[ConsistencyIssue] = Field(default_factory=list)
     rule_summaries: list[CheckRuleSummary] = Field(default_factory=list)
+
+
+class VolumeCheckSourceVersions(DomainModel):
+    volume_version: int = 0
+    planned_chapter_versions: dict[str, int] = Field(default_factory=dict)
+    finalized_chapter_versions: dict[str, int] = Field(default_factory=dict)
+    assembled_version: int = 0
+
+
+class VolumeCheckReport(DomainModel):
+    report_id: str
+    project_id: str
+    volume_id: str
+    trigger: str
+    checker_version: str = "deterministic_v1"
+    created_at: datetime
+    source_versions: VolumeCheckSourceVersions
+    overall_status: str
+    blocker_count: int = 0
+    warning_count: int = 0
+    issues: list[ConsistencyIssue] = Field(default_factory=list)
+    rule_summaries: list[CheckRuleSummary] = Field(default_factory=list)

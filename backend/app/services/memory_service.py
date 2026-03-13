@@ -15,6 +15,9 @@ from backend.app.domain.models.writing import (
     CharacterStateSummaryMemoryItem,
     MemoryIngestResult,
     SceneDraft,
+    VolumeAssembledDocument,
+    VolumeSummariesMemoryDocument,
+    VolumeSummaryMemoryItem,
 )
 from backend.app.repositories.file_repository import FileRepository
 from backend.app.services.bible_service import BibleService
@@ -105,6 +108,14 @@ class MemoryService:
             return CharacterStateSummariesMemoryDocument.model_validate(self.file_repository.read_json(path))
         document = CharacterStateSummariesMemoryDocument(project_id=project_id, updated_at=utc_now())
         self._write_character_state_summaries(slug, document)
+        return document
+
+    def read_volume_summaries(self, slug: str, project_id: str) -> VolumeSummariesMemoryDocument:
+        path = self.paths.volume_summaries_memory_path(slug)
+        if self.file_repository.exists(path):
+            return VolumeSummariesMemoryDocument.model_validate(self.file_repository.read_json(path))
+        document = VolumeSummariesMemoryDocument(project_id=project_id, updated_at=utc_now())
+        self._write_volume_summaries(slug, document)
         return document
 
     def _upsert_accepted_scene(
@@ -238,6 +249,27 @@ class MemoryService:
     def _write_character_state_summaries(self, slug: str, document: CharacterStateSummariesMemoryDocument) -> None:
         self.file_repository.write_json(self.paths.character_state_summaries_memory_path(slug), document.model_dump(mode="json"))
 
+    def update_finalized_volume_summary(self, slug: str, assembled: VolumeAssembledDocument, volume_plan: VolumePlan) -> VolumeSummaryMemoryItem:
+        document = self.read_volume_summaries(slug, assembled.project_id)
+        document.items = [item for item in document.items if item.volume_id != assembled.volume_id]
+        item = VolumeSummaryMemoryItem(
+            volume_id=assembled.volume_id,
+            volume_no=assembled.volume_no,
+            title=volume_plan.title,
+            summary=assembled.summary,
+            hook=assembled.hook,
+            planned_chapter_count=assembled.progress_stats.planned_chapter_count,
+            finalized_chapter_count=assembled.progress_stats.finalized_chapter_count,
+            finalized_chapter_ids=[entry.chapter_id for entry in assembled.chapter_order],
+            updated_at=utc_now(),
+        )
+        document.items.append(item)
+        document.items = sorted(document.items, key=lambda value: (value.volume_no, value.volume_id))
+        document.version += 1
+        document.updated_at = utc_now()
+        self._write_volume_summaries(slug, document)
+        return item
+
     def _fallback_summary(self, content_md: str, title: str) -> str:
         text = " ".join(part.strip() for part in content_md.splitlines() if part.strip())
         if not text:
@@ -249,3 +281,6 @@ class MemoryService:
         if not self.file_repository.exists(path):
             return None
         return ChapterAssembledDocument.model_validate(self.file_repository.read_json(path))
+
+    def _write_volume_summaries(self, slug: str, document: VolumeSummariesMemoryDocument) -> None:
+        self.file_repository.write_json(self.paths.volume_summaries_memory_path(slug), document.model_dump(mode="json"))

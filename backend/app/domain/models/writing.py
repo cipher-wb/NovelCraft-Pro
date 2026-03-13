@@ -306,6 +306,51 @@ class ChapterAssembledDocument(DomainModel):
     finalized_from_assembly_version: int | None = None
 
 
+class VolumeAssembledSourceVersions(DomainModel):
+    volume_version: int = 0
+    planned_chapter_versions: dict[str, int] = Field(default_factory=dict)
+    finalized_chapter_versions: dict[str, int] = Field(default_factory=dict)
+
+
+class VolumeChapterOrderItem(DomainModel):
+    chapter_id: str
+    chapter_no: int
+    assembled_version: int
+
+
+class VolumeProgressStats(DomainModel):
+    planned_chapter_count: int = 0
+    finalized_chapter_count: int = 0
+    completion_ratio: float = 0.0
+    scene_count_total: int = 0
+    paragraph_count_total: int = 0
+    char_count_total: int = 0
+    first_finalized_chapter_no: int | None = None
+    last_finalized_chapter_no: int | None = None
+
+
+class VolumeAssembledDocument(DomainModel):
+    project_id: str
+    volume_id: str
+    volume_no: int
+    version: int = 0
+    status: str = "assembled"
+    updated_at: datetime
+    source_versions: VolumeAssembledSourceVersions = Field(default_factory=VolumeAssembledSourceVersions)
+    planned_chapter_order: list[str] = Field(default_factory=list)
+    chapter_order: list[VolumeChapterOrderItem] = Field(default_factory=list)
+    content_md: str = ""
+    summary: str = ""
+    hook: str = ""
+    progress_stats: VolumeProgressStats = Field(default_factory=VolumeProgressStats)
+    latest_check_report_path: str | None = None
+    last_check_status: str | None = None
+    last_check_blocker_count: int = 0
+    last_check_warning_count: int = 0
+    finalized_at: datetime | None = None
+    finalized_from_assembly_version: int | None = None
+
+
 class SceneDraft(DomainModel):
     draft_id: str
     project_id: str
@@ -373,6 +418,25 @@ class MemoryIngestResult(DomainModel):
     accepted_scene_item: AcceptedSceneMemoryItem
     chapter_summary_item: ChapterSummaryMemoryItem | None = None
     character_state_count: int = 0
+
+
+class VolumeSummaryMemoryItem(DomainModel):
+    volume_id: str
+    volume_no: int
+    title: str = ""
+    summary: str = ""
+    hook: str = ""
+    planned_chapter_count: int = 0
+    finalized_chapter_count: int = 0
+    finalized_chapter_ids: list[str] = Field(default_factory=list)
+    updated_at: datetime
+
+
+class VolumeSummariesMemoryDocument(DomainModel):
+    project_id: str
+    version: int = 1
+    updated_at: datetime
+    items: list[VolumeSummaryMemoryItem] = Field(default_factory=list)
 
 
 class CharacterStateSnapshot(DomainModel):

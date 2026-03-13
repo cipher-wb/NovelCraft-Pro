@@ -21,6 +21,8 @@ from backend.app.services.retrieval_service import RetrievalService
 from backend.app.services.scene_draft_service import SceneDraftService
 from backend.app.services.style_service import StyleService
 from backend.app.services.voice_constraint_builder import VoiceConstraintBuilder
+from backend.app.services.volume_assembly_service import VolumeAssemblyService
+from backend.app.services.volume_checks_service import VolumeChecksService
 
 
 def get_app_settings() -> Settings:
@@ -231,4 +233,33 @@ def get_chapter_assembly_service(
         scene_draft_service,
         memory_service,
         chapter_checks_service,
+    )
+
+
+def get_volume_checks_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    planner_service: PlannerService,
+) -> VolumeChecksService:
+    return VolumeChecksService(paths, file_repository, sqlite_repository, planner_service)
+
+
+def get_volume_assembly_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    planner_service: PlannerService,
+    chapter_assembly_service: ChapterAssemblyService,
+    memory_service: MemoryService,
+    volume_checks_service: VolumeChecksService,
+) -> VolumeAssemblyService:
+    return VolumeAssemblyService(
+        paths,
+        file_repository,
+        sqlite_repository,
+        planner_service,
+        chapter_assembly_service,
+        memory_service,
+        volume_checks_service,
     )
