@@ -7,6 +7,8 @@ from backend.app.repositories.file_repository import FileRepository
 from backend.app.repositories.sqlite_repository import SQLiteRepository
 from backend.app.repositories.vector_repository import VectorRepository
 from backend.app.services.bible_service import BibleService
+from backend.app.services.book_assembly_service import BookAssemblyService
+from backend.app.services.book_checks_service import BookChecksService
 from backend.app.services.bootstrap_service import BootstrapService
 from backend.app.services.chapter_assembly_service import ChapterAssemblyService
 from backend.app.services.chapter_checks_service import ChapterChecksService
@@ -262,4 +264,33 @@ def get_volume_assembly_service(
         chapter_assembly_service,
         memory_service,
         volume_checks_service,
+    )
+
+
+def get_book_checks_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    planner_service: PlannerService,
+) -> BookChecksService:
+    return BookChecksService(paths, file_repository, sqlite_repository, planner_service)
+
+
+def get_book_assembly_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    planner_service: PlannerService,
+    volume_assembly_service: VolumeAssemblyService,
+    memory_service: MemoryService,
+    book_checks_service: BookChecksService,
+) -> BookAssemblyService:
+    return BookAssemblyService(
+        paths,
+        file_repository,
+        sqlite_repository,
+        planner_service,
+        volume_assembly_service,
+        memory_service,
+        book_checks_service,
     )

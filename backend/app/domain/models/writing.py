@@ -451,6 +451,61 @@ class VolumeSummariesMemoryDocument(DomainModel):
     items: list[VolumeSummaryMemoryItem] = Field(default_factory=list)
 
 
+class BookAssembledSourceVersions(DomainModel):
+    master_outline_version: int = 0
+    planned_volume_versions: dict[str, int] = Field(default_factory=dict)
+    finalized_volume_versions: dict[str, int] = Field(default_factory=dict)
+
+
+class BookVolumeOrderItem(DomainModel):
+    volume_id: str
+    volume_no: int
+    assembled_version: int
+
+
+class BookProgressStats(DomainModel):
+    planned_volume_count: int = 0
+    finalized_volume_count: int = 0
+    completion_ratio: float = 0.0
+    chapter_count_total: int = 0
+    scene_count_total: int = 0
+    paragraph_count_total: int = 0
+    char_count_total: int = 0
+    first_finalized_volume_no: int | None = None
+    last_finalized_volume_no: int | None = None
+
+
+class BookAssembledDocument(DomainModel):
+    project_id: str
+    version: int = 0
+    status: str = "assembled"
+    updated_at: datetime
+    source_versions: BookAssembledSourceVersions = Field(default_factory=BookAssembledSourceVersions)
+    planned_volume_order: list[str] = Field(default_factory=list)
+    volume_order: list[BookVolumeOrderItem] = Field(default_factory=list)
+    content_md: str = ""
+    summary: str = ""
+    hook: str = ""
+    progress_stats: BookProgressStats = Field(default_factory=BookProgressStats)
+    latest_check_report_path: str | None = None
+    last_check_status: str | None = None
+    last_check_blocker_count: int = 0
+    last_check_warning_count: int = 0
+    finalized_at: datetime | None = None
+    finalized_from_assembly_version: int | None = None
+
+
+class BookSummaryMemoryDocument(DomainModel):
+    project_id: str
+    version: int = 1
+    updated_at: datetime
+    summary: str = ""
+    hook: str = ""
+    planned_volume_count: int = 0
+    finalized_volume_count: int = 0
+    finalized_volume_ids: list[str] = Field(default_factory=list)
+
+
 class CharacterStateSnapshot(DomainModel):
     snapshot_id: str
     project_id: str

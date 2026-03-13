@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from backend.app.api.bible import router as bible_router
+from backend.app.api.book import router as book_router
 from backend.app.api.chapters import router as chapters_router
 from backend.app.api.consultant import router as consultant_router
 from backend.app.api.drafts import router as drafts_router
@@ -22,3 +23,4 @@ router.include_router(plans_router)
 router.include_router(drafts_router)
 router.include_router(chapters_router)
 router.include_router(volumes_router)
+router.include_router(book_router)

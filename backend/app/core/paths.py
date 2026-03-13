@@ -97,6 +97,9 @@ class AppPaths:
     def volume_drafts_root(self, slug: str) -> Path:
         return self.drafts_dir(slug) / "volumes"
 
+    def book_drafts_root(self, slug: str) -> Path:
+        return self.drafts_dir(slug) / "book"
+
     def scene_drafts_dir(self, slug: str, scene_id: str) -> Path:
         return self.scene_drafts_root(slug) / scene_id
 
@@ -106,6 +109,9 @@ class AppPaths:
     def volume_drafts_dir(self, slug: str, volume_id: str) -> Path:
         return self.volume_drafts_root(slug) / volume_id
 
+    def book_drafts_dir(self, slug: str) -> Path:
+        return self.book_drafts_root(slug)
+
     def scene_draft_manifest_path(self, slug: str, scene_id: str) -> Path:
         return self.scene_drafts_dir(slug, scene_id) / "manifest.json"
 
@@ -114,6 +120,9 @@ class AppPaths:
 
     def volume_assembled_path(self, slug: str, volume_id: str) -> Path:
         return self.volume_drafts_dir(slug, volume_id) / "assembled.json"
+
+    def book_assembled_path(self, slug: str) -> Path:
+        return self.book_drafts_dir(slug) / "assembled.json"
 
     def scene_draft_path(self, slug: str, scene_id: str, draft_no: int) -> Path:
         return self.scene_drafts_dir(slug, scene_id) / f"draft-{draft_no:03d}.json"
@@ -130,6 +139,9 @@ class AppPaths:
     def volume_checks_dir(self, slug: str, volume_id: str) -> Path:
         return self.volume_drafts_dir(slug, volume_id) / "checks"
 
+    def book_checks_dir(self, slug: str) -> Path:
+        return self.book_drafts_dir(slug) / "checks"
+
     def scene_draft_check_report_path(self, slug: str, scene_id: str, draft_id: str) -> Path:
         return self.scene_checks_dir(slug, scene_id) / f"{draft_id}.json"
 
@@ -138,6 +150,9 @@ class AppPaths:
 
     def volume_check_latest_path(self, slug: str, volume_id: str) -> Path:
         return self.volume_checks_dir(slug, volume_id) / "latest.json"
+
+    def book_check_latest_path(self, slug: str) -> Path:
+        return self.book_checks_dir(slug) / "latest.json"
 
     def memory_dir(self, slug: str) -> Path:
         return self.project_root(slug) / "memory"
@@ -150,6 +165,9 @@ class AppPaths:
 
     def volume_summaries_memory_path(self, slug: str) -> Path:
         return self.memory_dir(slug) / "volume_summaries.json"
+
+    def book_summary_memory_path(self, slug: str) -> Path:
+        return self.memory_dir(slug) / "book_summary.json"
 
     def character_state_summaries_memory_path(self, slug: str) -> Path:
         return self.memory_dir(slug) / "character_state_summaries.json"

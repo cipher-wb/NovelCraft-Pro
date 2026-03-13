@@ -10,6 +10,7 @@ from backend.app.domain.models.project import CharacterDocument, PowerSystemDocu
 from backend.app.domain.models.style import VoiceProfileDocument
 from backend.app.domain.models.writing import (
     AcceptedSceneMemoryDocument,
+    BookSummaryMemoryDocument,
     ChapterSummariesMemoryDocument,
     CharacterStateSummariesMemoryDocument,
 )
@@ -96,6 +97,10 @@ class BootstrapService:
         self.file_repository.write_json(
             self.paths.character_state_summaries_memory_path(slug),
             CharacterStateSummariesMemoryDocument(project_id=manifest_payload["project_id"], updated_at=now).model_dump(mode="json"),
+        )
+        self.file_repository.write_json(
+            self.paths.book_summary_memory_path(slug),
+            BookSummaryMemoryDocument(project_id=manifest_payload["project_id"], updated_at=now).model_dump(mode="json"),
         )
 
         return {

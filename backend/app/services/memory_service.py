@@ -8,6 +8,8 @@ from backend.app.domain.models.planning import ChapterPlan, ScenePlan, VolumePla
 from backend.app.domain.models.writing import (
     AcceptedSceneMemoryDocument,
     AcceptedSceneMemoryItem,
+    BookAssembledDocument,
+    BookSummaryMemoryDocument,
     ChapterAssembledDocument,
     ChapterSummariesMemoryDocument,
     ChapterSummaryMemoryItem,
@@ -116,6 +118,14 @@ class MemoryService:
             return VolumeSummariesMemoryDocument.model_validate(self.file_repository.read_json(path))
         document = VolumeSummariesMemoryDocument(project_id=project_id, updated_at=utc_now())
         self._write_volume_summaries(slug, document)
+        return document
+
+    def read_book_summary(self, slug: str, project_id: str) -> BookSummaryMemoryDocument:
+        path = self.paths.book_summary_memory_path(slug)
+        if self.file_repository.exists(path):
+            return BookSummaryMemoryDocument.model_validate(self.file_repository.read_json(path))
+        document = BookSummaryMemoryDocument(project_id=project_id, updated_at=utc_now())
+        self._write_book_summary(slug, document)
         return document
 
     def _upsert_accepted_scene(
@@ -270,6 +280,18 @@ class MemoryService:
         self._write_volume_summaries(slug, document)
         return item
 
+    def update_finalized_book_summary(self, slug: str, assembled: BookAssembledDocument) -> BookSummaryMemoryDocument:
+        document = self.read_book_summary(slug, assembled.project_id)
+        document.version += 1
+        document.updated_at = utc_now()
+        document.summary = assembled.summary
+        document.hook = assembled.hook
+        document.planned_volume_count = assembled.progress_stats.planned_volume_count
+        document.finalized_volume_count = assembled.progress_stats.finalized_volume_count
+        document.finalized_volume_ids = [item.volume_id for item in assembled.volume_order]
+        self._write_book_summary(slug, document)
+        return document
+
     def _fallback_summary(self, content_md: str, title: str) -> str:
         text = " ".join(part.strip() for part in content_md.splitlines() if part.strip())
         if not text:
@@ -284,3 +306,6 @@ class MemoryService:
 
     def _write_volume_summaries(self, slug: str, document: VolumeSummariesMemoryDocument) -> None:
         self.file_repository.write_json(self.paths.volume_summaries_memory_path(slug), document.model_dump(mode="json"))
+
+    def _write_book_summary(self, slug: str, document: BookSummaryMemoryDocument) -> None:
+        self.file_repository.write_json(self.paths.book_summary_memory_path(slug), document.model_dump(mode="json"))
