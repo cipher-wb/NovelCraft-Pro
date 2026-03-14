@@ -1,6 +1,6 @@
-# Demo Workflow
+# 演示流程
 
-本流程与 `examples/sample-project-package/` 强绑定，默认你从仓库根目录启动服务，并且本地 `projects/` 中还没有同名 demo 项目。
+本流程与 `examples/sample-project-package/` 强绑定，默认你从仓库根目录启动服务，并且本地 `projects/` 中还没有同名演示项目。
 
 ## 1. 启动服务
 
@@ -15,7 +15,7 @@ python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
   - `"status": "ok"`
   - `"app": "NovelCraft Pro"`
 
-## 2. 导入 sample package
+## 2. 导入示例项目包
 
 ```powershell
 Invoke-RestMethod `
@@ -49,7 +49,7 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/projects/proj_phase11_demo/diagnost
   - `"overall_status": "clean"`
   - `"book_artifact": { "status": "finalized", ... }`
 
-## 4. 打开 dashboard
+## 4. 打开工作台
 
 浏览器访问：
 
@@ -59,23 +59,23 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/projects/proj_phase11_demo/diagnost
 
 - 页面标题显示 `NovelCraft Pro`
 - 页面中可见：
-  - `Project Health`
-  - `Export Project Package`
-  - `Import Package`
-  - `Create Archive Snapshot`
-  - `Create Backup`
-  - `Load Snapshots`
+  - `项目体检`
+  - `导出项目包`
+  - `导入项目包`
+  - `创建归档快照`
+  - `创建备份`
+  - `加载快照列表`
 
-## 5. 在 dashboard 里加载 health
+## 5. 在工作台里加载体检信息
 
 操作：
 
-- 在 `Project ID` 输入 `proj_phase11_demo`
-- 点击 `Load Health`
+- 在 `项目 ID` 输入 `proj_phase11_demo`
+- 点击 `加载体检`
 
 预期结果：
 
-- `Project Health` 区块显示 JSON
+- `项目体检` 区块显示 JSON
 - JSON 中至少包含：
   - `"project_id": "proj_phase11_demo"`
   - `"overall_status": "clean"`
@@ -84,7 +84,7 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/projects/proj_phase11_demo/diagnost
 
 操作：
 
-- 点击 `Export Project Package`
+- 点击 `导出项目包`
 
 预期结果：
 
@@ -100,7 +100,7 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/projects/proj_phase11_demo/diagnost
 操作：
 
 - 在 `Archive Label` 输入 `phase11-demo`
-- 点击 `Create Archive Snapshot`
+- 点击 `创建归档快照`
 
 预期结果：
 
@@ -114,7 +114,7 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/projects/proj_phase11_demo/diagnost
 
 操作：
 
-- 点击 `Create Backup`
+- 点击 `创建备份`
 
 预期结果：
 
@@ -128,7 +128,7 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/projects/proj_phase11_demo/diagnost
 
 操作：
 
-- 点击 `Load Snapshots`
+- 点击 `加载快照列表`
 
 预期结果：
 
@@ -140,12 +140,12 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/projects/proj_phase11_demo/diagnost
 
 ## 10. 结束条件
 
-满足以下条件即可认为 demo workflow 成功：
+满足以下条件即可认为演示流程成功：
 
-- sample package 成功导入为新项目
+- 示例项目包成功导入为新项目
 - health 返回 `clean`
-- dashboard 可用
-- export project package 成功
+- 工作台可用
+- 导出项目包成功
 - archive snapshot 成功
 - backup 成功
 - snapshots list 能同时列出 archive 和 backup

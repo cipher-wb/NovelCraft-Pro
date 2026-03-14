@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NovelCraft Pro Style Profile</title>
+  <title>NovelCraft Pro 风格配置</title>
   <style>
     :root {
       --bg: #f5f1ea;
@@ -73,71 +73,71 @@
 </head>
 <body>
 <main>
-  <h1>NovelCraft Pro Style Profile</h1>
-  <p class="hint">Phase 5B 最小 style 配置页：启用/关闭 voice profile，并保存全局风格约束。</p>
+  <h1>NovelCraft Pro 风格配置</h1>
+  <p class="hint">Phase 5B 最小风格配置页：启用 / 关闭风格档案，并保存全局风格约束。</p>
 
   <section>
     <h2>1. 项目标识</h2>
-    <label for="projectId">Project ID</label>
+    <label for="projectId">项目 ID</label>
     <input id="projectId" placeholder="proj_xxx">
-    <button id="loadProfile">加载 Profile</button>
+    <button id="loadProfile">加载配置</button>
   </section>
 
   <section>
     <h2>2. 全局风格</h2>
     <div class="grid">
       <div>
-        <label for="enabled">Enabled</label>
+        <label for="enabled">是否启用</label>
         <select id="enabled">
-          <option value="true">true</option>
-          <option value="false">false</option>
+          <option value="true">启用</option>
+          <option value="false">停用</option>
         </select>
       </div>
       <div>
-        <label for="profileName">Profile Name</label>
+        <label for="profileName">配置名称</label>
         <input id="profileName">
       </div>
       <div>
-        <label for="baseline">Sentence Baseline</label>
+        <label for="baseline">句长基线</label>
         <select id="baseline">
-          <option value="short">short</option>
-          <option value="medium_short">medium_short</option>
-          <option value="medium">medium</option>
+          <option value="short">短句</option>
+          <option value="medium_short">中短句</option>
+          <option value="medium">中句</option>
         </select>
       </div>
       <div>
-        <label for="softMaxSentenceChars">Soft Max Sentence Chars</label>
+        <label for="softMaxSentenceChars">句子软上限字数</label>
         <input id="softMaxSentenceChars" type="number" min="0">
       </div>
       <div>
-        <label for="softMaxSentences">Soft Max Sentences Per Paragraph</label>
+        <label for="softMaxSentences">段落软上限句数</label>
         <input id="softMaxSentences" type="number" min="0">
       </div>
       <div>
-        <label for="burstShortLines">Burst Short Lines</label>
+        <label for="burstShortLines">短句爆发</label>
         <select id="burstShortLines">
-          <option value="true">true</option>
-          <option value="false">false</option>
+          <option value="true">启用</option>
+          <option value="false">停用</option>
         </select>
       </div>
       <div>
-        <label for="narrationPerson">Narration Person</label>
+        <label for="narrationPerson">叙述人称</label>
         <select id="narrationPerson">
-          <option value="third_limited">third_limited</option>
-          <option value="first_person">first_person</option>
+          <option value="third_limited">限制性第三人称</option>
+          <option value="first_person">第一人称</option>
         </select>
       </div>
       <div>
-        <label for="payoffIntensity">Payoff Intensity</label>
+        <label for="payoffIntensity">爽点力度</label>
         <select id="payoffIntensity">
-          <option value="direct">direct</option>
-          <option value="restrained">restrained</option>
+          <option value="direct">直接</option>
+          <option value="restrained">克制</option>
         </select>
       </div>
     </div>
-    <label for="bannedPhrases">Banned Phrases（每行一个）</label>
+    <label for="bannedPhrases">禁用短语（每行一个）</label>
     <textarea id="bannedPhrases"></textarea>
-    <button id="saveProfile">保存 Profile</button>
+    <button id="saveProfile">保存配置</button>
   </section>
 
   <section>
@@ -152,11 +152,26 @@
     debugOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
   }
 
+  function formatError(error) {
+    if (error && typeof error === 'object' && error.payload) {
+      const detail = error.payload.detail;
+      if (detail && typeof detail === 'object' && detail.message) {
+        return `请求失败：${detail.message}`;
+      }
+      if (typeof detail === 'string') {
+        return `请求失败：${detail}`;
+      }
+      return JSON.stringify(error.payload, null, 2);
+    }
+    const text = String(error);
+    return text.startsWith('Error: ') ? text.slice(7) : text;
+  }
+
   async function fetchJson(url, options = {}) {
     const response = await fetch(url, options);
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(JSON.stringify(payload));
+      throw { status: response.status, payload };
     }
     return payload;
   }
@@ -176,7 +191,7 @@
   async function loadProfile() {
     const projectId = document.getElementById('projectId').value.trim();
     if (!projectId) {
-      setDebug('请先输入 project_id。');
+      setDebug('请先输入项目 ID。');
       return;
     }
     try {
@@ -184,14 +199,14 @@
       applyProfile(payload.profile);
       setDebug(payload);
     } catch (error) {
-      setDebug(String(error));
+      setDebug(formatError(error));
     }
   }
 
   async function saveProfile() {
     const projectId = document.getElementById('projectId').value.trim();
     if (!projectId) {
-      setDebug('请先输入 project_id。');
+      setDebug('请先输入项目 ID。');
       return;
     }
     const payload = {
@@ -240,7 +255,7 @@
       applyProfile(response.profile);
       setDebug(response);
     } catch (error) {
-      setDebug(String(error));
+      setDebug(formatError(error));
     }
   }
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NovelCraft Pro Volume Assembly Studio</title>
+  <title>NovelCraft Pro 卷组装工作台</title>
   <style>
     :root {
       --bg: #f4efe7;
@@ -26,29 +26,29 @@
 </head>
 <body>
 <main>
-  <h1>NovelCraft Pro Volume Assembly Studio</h1>
-  <p>Phase 7 最小卷组装工作台：查看 volume、assemble、recheck、finalize。</p>
+  <h1>NovelCraft Pro 卷组装工作台</h1>
+  <p>Phase 7 最小卷组装工作台：查看卷、组装、重新检查、定稿。</p>
 
   <section>
-    <h2>1. 载入 Volume</h2>
-    <label for="projectId">Project ID</label>
+    <h2>1. 载入卷</h2>
+    <label for="projectId">项目 ID</label>
     <input id="projectId" placeholder="proj_xxx">
-    <label for="volumeId">Volume ID</label>
+    <label for="volumeId">卷 ID</label>
     <input id="volumeId" placeholder="volume_001">
-    <button id="loadVolume">加载 Volume</button>
-    <button id="assembleVolume">Assemble Volume</button>
-    <button id="recheckVolume">Recheck</button>
-    <button id="finalizeVolume">Finalize</button>
-    <button id="exportVolume">Export Volume</button>
+    <button id="loadVolume">加载卷</button>
+    <button id="assembleVolume">组装卷</button>
+    <button id="recheckVolume">重新检查</button>
+    <button id="finalizeVolume">卷定稿</button>
+    <button id="exportVolume">导出卷</button>
   </section>
 
   <section>
-    <h2>2. Assembled 内容</h2>
-    <pre id="assembledOutput">等待载入 volume...</pre>
+    <h2>2. 组装结果</h2>
+    <pre id="assembledOutput">等待载入卷...</pre>
   </section>
 
   <section>
-    <h2>3. Checks</h2>
+    <h2>3. 检查结果</h2>
     <pre id="checksOutput">等待检查结果...</pre>
   </section>
 </main>
@@ -59,10 +59,25 @@
   const assembledOutput = document.getElementById("assembledOutput");
   const checksOutput = document.getElementById("checksOutput");
 
+  function formatError(error) {
+    if (error && typeof error === "object" && error.payload) {
+      const detail = error.payload.detail;
+      if (detail && typeof detail === "object" && detail.message) {
+        return `请求失败：${detail.message}`;
+      }
+      if (typeof detail === "string") {
+        return `请求失败：${detail}`;
+      }
+      return JSON.stringify(error.payload, null, 2);
+    }
+    const text = String(error);
+    return text.startsWith("Error: ") ? text.slice(7) : text;
+  }
+
   async function fetchJson(url, options = {}) {
     const response = await fetch(url, options);
     const payload = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(payload));
+    if (!response.ok) throw { status: response.status, payload };
     return payload;
   }
 
@@ -70,20 +85,20 @@
     currentProjectId = document.getElementById("projectId").value.trim();
     currentVolumeId = document.getElementById("volumeId").value.trim();
     if (!currentProjectId || !currentVolumeId) {
-      assembledOutput.textContent = "请先输入 project_id 和 volume_id。";
+      assembledOutput.textContent = "请先输入项目 ID 和卷 ID。";
       return;
     }
     try {
       const assembled = await fetchJson(`/api/projects/${currentProjectId}/volumes/${currentVolumeId}/assembled`);
       assembledOutput.textContent = JSON.stringify(assembled, null, 2);
     } catch (error) {
-      assembledOutput.textContent = String(error);
+      assembledOutput.textContent = formatError(error);
     }
     try {
       const report = await fetchJson(`/api/projects/${currentProjectId}/volumes/${currentVolumeId}/checks/latest`);
       checksOutput.textContent = JSON.stringify(report, null, 2);
     } catch (error) {
-      checksOutput.textContent = String(error);
+      checksOutput.textContent = formatError(error);
     }
   }
 
@@ -91,7 +106,7 @@
     currentProjectId = document.getElementById("projectId").value.trim();
     currentVolumeId = document.getElementById("volumeId").value.trim();
     if (!currentProjectId || !currentVolumeId) {
-      assembledOutput.textContent = "请先输入 project_id 和 volume_id。";
+      assembledOutput.textContent = "请先输入项目 ID 和卷 ID。";
       return;
     }
     try {
@@ -104,7 +119,7 @@
         await loadVolume();
       }
     } catch (error) {
-      assembledOutput.textContent = String(error);
+      assembledOutput.textContent = formatError(error);
     }
   }
 
@@ -112,7 +127,7 @@
     currentProjectId = document.getElementById("projectId").value.trim();
     currentVolumeId = document.getElementById("volumeId").value.trim();
     if (!currentProjectId || !currentVolumeId) {
-      assembledOutput.textContent = "请先输入 project_id 和 volume_id。";
+      assembledOutput.textContent = "请先输入项目 ID 和卷 ID。";
       return;
     }
     try {
@@ -123,7 +138,7 @@
       });
       assembledOutput.textContent = JSON.stringify(payload, null, 2);
     } catch (error) {
-      assembledOutput.textContent = String(error);
+      assembledOutput.textContent = formatError(error);
     }
   }
 

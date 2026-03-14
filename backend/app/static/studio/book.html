@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NovelCraft Pro Book Assembly Studio</title>
+  <title>NovelCraft Pro 整书组装工作台</title>
   <style>
     :root {
       --bg: #f4efe7;
@@ -26,34 +26,34 @@
 </head>
 <body>
 <main>
-  <h1>NovelCraft Pro Book Assembly Studio</h1>
-  <p>Phase 8A 最小整书组装工作台：查看 book、assemble、recheck、finalize。</p>
+  <h1>NovelCraft Pro 整书组装工作台</h1>
+  <p>Phase 8A 最小整书组装工作台：查看整书、组装、重新检查、定稿。</p>
 
   <section>
-    <h2>1. 载入 Book</h2>
-    <label for="projectId">Project ID</label>
+    <h2>1. 载入整书</h2>
+    <label for="projectId">项目 ID</label>
     <input id="projectId" placeholder="proj_xxx">
-    <button id="loadBook">加载 Book</button>
-    <button id="assembleBook">Assemble Book</button>
-    <button id="recheckBook">Recheck</button>
-    <button id="recheckContinuity">Recheck Continuity</button>
-    <button id="finalizeBook">Finalize</button>
-    <button id="exportBook">Export Book</button>
+    <button id="loadBook">加载整书</button>
+    <button id="assembleBook">组装整书</button>
+    <button id="recheckBook">重新检查</button>
+    <button id="recheckContinuity">重跑连续性检查</button>
+    <button id="finalizeBook">整书定稿</button>
+    <button id="exportBook">导出整书</button>
   </section>
 
   <section>
-    <h2>2. Assembled 内容</h2>
-    <pre id="assembledOutput">等待载入 book...</pre>
+    <h2>2. 组装结果</h2>
+    <pre id="assembledOutput">等待载入整书...</pre>
   </section>
 
   <section>
-    <h2>3. Checks</h2>
+    <h2>3. 检查结果</h2>
     <pre id="checksOutput">等待检查结果...</pre>
   </section>
 
   <section>
-    <h2>4. Continuity Checks</h2>
-    <pre id="continuityOutput">等待 continuity 检查结果...</pre>
+    <h2>4. 长线连续性检查</h2>
+    <pre id="continuityOutput">等待长线连续性检查结果...</pre>
   </section>
 </main>
 <script>
@@ -62,43 +62,58 @@
   const checksOutput = document.getElementById("checksOutput");
   const continuityOutput = document.getElementById("continuityOutput");
 
+  function formatError(error) {
+    if (error && typeof error === "object" && error.payload) {
+      const detail = error.payload.detail;
+      if (detail && typeof detail === "object" && detail.message) {
+        return `请求失败：${detail.message}`;
+      }
+      if (typeof detail === "string") {
+        return `请求失败：${detail}`;
+      }
+      return JSON.stringify(error.payload, null, 2);
+    }
+    const text = String(error);
+    return text.startsWith("Error: ") ? text.slice(7) : text;
+  }
+
   async function fetchJson(url, options = {}) {
     const response = await fetch(url, options);
     const payload = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(payload));
+    if (!response.ok) throw { status: response.status, payload };
     return payload;
   }
 
   async function loadBook() {
     currentProjectId = document.getElementById("projectId").value.trim();
     if (!currentProjectId) {
-      assembledOutput.textContent = "请先输入 project_id。";
+      assembledOutput.textContent = "请先输入项目 ID。";
       return;
     }
     try {
       const assembled = await fetchJson(`/api/projects/${currentProjectId}/book/assembled`);
       assembledOutput.textContent = JSON.stringify(assembled, null, 2);
     } catch (error) {
-      assembledOutput.textContent = String(error);
+      assembledOutput.textContent = formatError(error);
     }
     try {
       const report = await fetchJson(`/api/projects/${currentProjectId}/book/checks/latest`);
       checksOutput.textContent = JSON.stringify(report, null, 2);
     } catch (error) {
-      checksOutput.textContent = String(error);
+      checksOutput.textContent = formatError(error);
     }
     try {
       const continuity = await fetchJson(`/api/projects/${currentProjectId}/book/continuity-checks/latest`);
       continuityOutput.textContent = JSON.stringify(continuity, null, 2);
     } catch (error) {
-      continuityOutput.textContent = String(error);
+      continuityOutput.textContent = formatError(error);
     }
   }
 
   async function callBookAction(action) {
     currentProjectId = document.getElementById("projectId").value.trim();
     if (!currentProjectId) {
-      assembledOutput.textContent = "请先输入 project_id。";
+      assembledOutput.textContent = "请先输入项目 ID。";
       return;
     }
     try {
@@ -116,14 +131,14 @@
         await loadBook();
       }
     } catch (error) {
-      assembledOutput.textContent = String(error);
+      assembledOutput.textContent = formatError(error);
     }
   }
 
   async function exportBook() {
     currentProjectId = document.getElementById("projectId").value.trim();
     if (!currentProjectId) {
-      assembledOutput.textContent = "请先输入 project_id。";
+      assembledOutput.textContent = "请先输入项目 ID。";
       return;
     }
     try {
@@ -134,7 +149,7 @@
       });
       assembledOutput.textContent = JSON.stringify(payload, null, 2);
     } catch (error) {
-      assembledOutput.textContent = String(error);
+      assembledOutput.textContent = formatError(error);
     }
   }
 

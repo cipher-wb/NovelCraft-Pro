@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NovelCraft Pro Studio</title>
+  <title>NovelCraft Pro 工作台</title>
   <style>
     :root {
       --bg: #f4efe7;
@@ -72,41 +72,41 @@
 <body>
 <main>
   <h1>NovelCraft Pro</h1>
-  <p>当前工作台用于串起项目创建、scene/chapter/volume/book 主链，以及 Phase 10B 的 export / import / archive / backup / rebuild / diagnostics 最小收尾链。</p>
-  <p><a href="/studio/scene.html">打开 Scene Draft 页面</a></p>
-  <p><a href="/studio/style.html">打开 Style 配置页面</a></p>
-  <p><a href="/studio/chapter.html">打开 Chapter Assembly 页面</a></p>
-  <p><a href="/studio/volume.html">打开 Volume Assembly 页面</a></p>
-  <p><a href="/studio/book.html">打开 Book Assembly 页面</a></p>
+  <p>当前工作台用于串起项目创建、场景 / 章节 / 卷 / 整书主链，以及 Phase 10B 的导出 / 导入 / 归档 / 备份 / 重建 / 诊断最小收尾链。</p>
+  <p><a href="/studio/scene.html">打开场景草稿页面</a></p>
+  <p><a href="/studio/style.html">打开风格配置页面</a></p>
+  <p><a href="/studio/chapter.html">打开章节组装页面</a></p>
+  <p><a href="/studio/volume.html">打开卷组装页面</a></p>
+  <p><a href="/studio/book.html">打开整书组装页面</a></p>
 
   <section>
-    <h2>0. Project Health</h2>
-    <label for="projectHealthId">Project ID</label>
+    <h2>0. 项目体检</h2>
+    <label for="projectHealthId">项目 ID</label>
     <input id="projectHealthId" placeholder="proj_xxx">
-    <button id="loadHealth">Load Health</button>
-    <button id="rebuildAll">Rebuild All</button>
-    <button id="rebuildMemory">Rebuild Memory</button>
-    <button id="rebuildChapters">Rebuild Chapters</button>
-    <button id="rebuildVolumes">Rebuild Volumes</button>
-    <button id="rebuildBook">Rebuild Book</button>
-    <button id="rebuildChecks">Rebuild Checks</button>
-    <button id="exportBook">Export Book</button>
-    <pre id="healthOutput">等待 health 信息...</pre>
-    <pre id="rebuildOutput">等待 rebuild / export 结果...</pre>
+    <button id="loadHealth">加载体检</button>
+    <button id="rebuildAll">全量重建</button>
+    <button id="rebuildMemory">重建记忆</button>
+    <button id="rebuildChapters">重建章节</button>
+    <button id="rebuildVolumes">重建卷</button>
+    <button id="rebuildBook">重建整书</button>
+    <button id="rebuildChecks">重跑检查</button>
+    <button id="exportBook">导出整书</button>
+    <pre id="healthOutput">等待体检信息...</pre>
+    <pre id="rebuildOutput">等待重建 / 导出结果...</pre>
   </section>
 
   <section>
-    <h2>0.5 Project Package</h2>
-    <label for="projectPackagePath">Package Path</label>
+    <h2>0.5 项目打包</h2>
+    <label for="projectPackagePath">包路径</label>
     <input id="projectPackagePath" placeholder="examples/sample-project-package 或项目内导出目录">
-    <label for="archiveLabel">Archive Label</label>
-    <input id="archiveLabel" placeholder="release-candidate">
-    <button id="exportProjectPackage">Export Project Package</button>
-    <button id="importProjectPackage">Import Package</button>
-    <button id="createArchiveSnapshot">Create Archive Snapshot</button>
-    <button id="createBackup">Create Backup</button>
-    <button id="loadSnapshots">Load Snapshots</button>
-    <pre id="snapshotOutput">等待 import / archive / backup / snapshots 结果...</pre>
+    <label for="archiveLabel">归档标签</label>
+    <input id="archiveLabel" placeholder="发布候选">
+    <button id="exportProjectPackage">导出项目包</button>
+    <button id="importProjectPackage">导入项目包</button>
+    <button id="createArchiveSnapshot">创建归档快照</button>
+    <button id="createBackup">创建备份</button>
+    <button id="loadSnapshots">加载快照列表</button>
+    <pre id="snapshotOutput">等待导入 / 归档 / 备份 / 快照结果...</pre>
   </section>
 
   <section>
@@ -140,7 +140,7 @@
     <input id="subgenres" value="都市异能,升级流">
     <label for="constraints">约束（逗号分隔）</label>
     <input id="constraints" value="作者主导,长线连载">
-    <button id="startConsultant">启动 Session</button>
+    <button id="startConsultant">启动顾问会话</button>
   </section>
 
   <section>
@@ -192,7 +192,7 @@
       return JSON.stringify({
         status,
         code: detail.code || 'unexpected_error',
-        message: detail.message || 'Unexpected productization error'
+        message: detail.message || '发生了未预期的成品化错误'
       }, null, 2);
     }
     if (typeof detail === 'string') {
@@ -234,7 +234,7 @@
   function setQuestion(question) {
     currentQuestion = question;
     if (!question) {
-      questionBox.textContent = '所有问题已回答，可以 finalize。';
+      questionBox.textContent = '所有问题已回答，可以生成立项档案。';
       return;
     }
     questionBox.textContent = `${question.question_id}: ${question.prompt}`;
@@ -296,7 +296,7 @@
 
   document.getElementById('finalizeSession').addEventListener('click', async () => {
     if (!sessionId) {
-      setOutput('请先启动 consultant session。');
+      setOutput('请先启动顾问会话。');
       return;
     }
     const response = await fetch(`/api/consultant/sessions/${sessionId}/finalize`, {method: 'POST'});
@@ -311,7 +311,7 @@
   async function loadHealth() {
     const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
     if (!targetProjectId) {
-      setHealth('请先输入 project_id。');
+      setHealth('请先输入项目 ID。');
       return;
     }
     try {
@@ -325,7 +325,7 @@
   async function rebuild(targets = []) {
     const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
     if (!targetProjectId) {
-      setRebuild('请先输入 project_id。');
+      setRebuild('请先输入项目 ID。');
       return;
     }
     try {
@@ -340,7 +340,7 @@
   async function exportBook() {
     const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
     if (!targetProjectId) {
-      setRebuild('请先输入 project_id。');
+      setRebuild('请先输入项目 ID。');
       return;
     }
     try {
@@ -358,7 +358,7 @@
   async function exportProjectPackage() {
     const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
     if (!targetProjectId) {
-      setSnapshots('请先输入 project_id。');
+      setSnapshots('请先输入项目 ID。');
       return;
     }
     try {
@@ -376,7 +376,7 @@
   async function importProjectPackage() {
     const packagePath = document.getElementById('projectPackagePath').value.trim();
     if (!packagePath) {
-      setSnapshots('请先输入 package_path。');
+      setSnapshots('请先输入包路径。');
       return;
     }
     try {
@@ -393,7 +393,7 @@
   async function createArchiveSnapshot() {
     const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
     if (!targetProjectId) {
-      setSnapshots('请先输入 project_id。');
+      setSnapshots('请先输入项目 ID。');
       return;
     }
     try {
@@ -410,7 +410,7 @@
   async function createBackup() {
     const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
     if (!targetProjectId) {
-      setSnapshots('请先输入 project_id。');
+      setSnapshots('请先输入项目 ID。');
       return;
     }
     try {
@@ -426,7 +426,7 @@
   async function loadSnapshots() {
     const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
     if (!targetProjectId) {
-      setSnapshots('请先输入 project_id。');
+      setSnapshots('请先输入项目 ID。');
       return;
     }
     try {

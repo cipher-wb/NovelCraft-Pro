@@ -347,7 +347,7 @@ def test_missing_report_on_accept_triggers_preflight_rerun(client: TestClient, b
 def test_scene_studio_page_is_available(client: TestClient) -> None:
     response = client.get("/studio/scene.html")
     assert response.status_code == 200
-    assert "Repair Draft" in response.text
+    assert "修复草稿" in response.text
 
 
 def test_generate_and_repair_include_style_constraints(client: TestClient, build_ready_scene_project) -> None:

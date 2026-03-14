@@ -136,4 +136,4 @@ def test_chapter_api_stale_only_on_active_accepted_changes_and_finalize_rules(cl
 def test_chapter_studio_page_is_available(client: TestClient) -> None:
     response = client.get("/studio/chapter.html")
     assert response.status_code == 200
-    assert "Assemble Chapter" in response.text
+    assert "组装章节" in response.text

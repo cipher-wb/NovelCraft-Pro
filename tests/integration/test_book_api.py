@@ -194,5 +194,5 @@ def test_book_api_partial_assemble_blocks_finalize_and_stale_flow(client: TestCl
 def test_book_studio_page_is_available(client: TestClient) -> None:
     response = client.get("/studio/book.html")
     assert response.status_code == 200
-    assert "Assemble Book" in response.text
+    assert "组装整书" in response.text
 

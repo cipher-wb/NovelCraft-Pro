@@ -175,4 +175,4 @@ def test_volume_api_partial_assemble_blocks_finalize_and_stale_flow(client: Test
 def test_volume_studio_page_is_available(client: TestClient) -> None:
     response = client.get("/studio/volume.html")
     assert response.status_code == 200
-    assert "Assemble Volume" in response.text
+    assert "组装卷" in response.text

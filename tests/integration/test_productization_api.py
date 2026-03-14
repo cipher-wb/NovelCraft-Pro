@@ -176,17 +176,17 @@ def test_rebuild_and_health_api_are_available_and_dashboard_links_exist(client: 
 
     dashboard = client.get("/studio")
     assert dashboard.status_code == 200
-    assert "Rebuild All" in dashboard.text
-    assert "Project Health" in dashboard.text
+    assert "全量重建" in dashboard.text
+    assert "项目体检" in dashboard.text
 
     scene_page = client.get("/studio/scene.html")
     chapter_page = client.get("/studio/chapter.html")
     volume_page = client.get("/studio/volume.html")
     book_page = client.get("/studio/book.html")
-    assert "Export Scene" in scene_page.text
-    assert "Export Chapter" in chapter_page.text
-    assert "Export Volume" in volume_page.text
-    assert "Export Book" in book_page.text
+    assert "导出场景" in scene_page.text
+    assert "导出章节" in chapter_page.text
+    assert "导出卷" in volume_page.text
+    assert "导出整书" in book_page.text
 
 
 def test_archive_backup_and_snapshots_api_are_available(client: TestClient) -> None:
@@ -214,9 +214,9 @@ def test_archive_backup_and_snapshots_api_are_available(client: TestClient) -> N
 
     dashboard = client.get("/studio")
     assert dashboard.status_code == 200
-    assert "Import Package" in dashboard.text
-    assert "Create Archive Snapshot" in dashboard.text
-    assert "Create Backup" in dashboard.text
+    assert "导入项目包" in dashboard.text
+    assert "创建归档快照" in dashboard.text
+    assert "创建备份" in dashboard.text
 
 
 def test_productization_endpoints_return_machine_friendly_error_codes(client: TestClient) -> None:
@@ -226,10 +226,12 @@ def test_productization_endpoints_return_machine_friendly_error_codes(client: Te
     )
     assert export.status_code == 400
     assert export.json()["detail"]["code"] == "unsupported_export_scope"
+    assert export.json()["detail"]["message"] == "不支持的导出范围。"
 
     health = client.get("/api/projects/proj_missing/diagnostics/health")
     assert health.status_code == 404
     assert health.json()["detail"]["code"] == "resource_not_found"
+    assert health.json()["detail"]["message"] == "项目或资源不存在"
 
     imported = client.post(
         "/api/projects/import-package",
@@ -237,6 +239,7 @@ def test_productization_endpoints_return_machine_friendly_error_codes(client: Te
     )
     assert imported.status_code == 400
     assert imported.json()["detail"]["code"] == "unsupported_import_mode"
+    assert imported.json()["detail"]["message"] == "当前仅支持 create_new 导入模式。"
 
 
 def test_import_conflict_returns_stable_target_slug_code(client: TestClient) -> None:

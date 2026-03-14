@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NovelCraft Pro Scene Draft Studio</title>
+  <title>NovelCraft Pro 场景草稿工作台</title>
   <style>
     :root {
       --bg: #f4efe7;
@@ -84,51 +84,51 @@
 </head>
 <body>
 <main>
-  <h1>NovelCraft Pro Scene Draft Studio</h1>
-  <p>Phase 5B 最小场景草稿工作台：加载 scene、生成 draft、查看 draft、accept / reject / repair，并自动消费 style 约束。</p>
+  <h1>NovelCraft Pro 场景草稿工作台</h1>
+  <p>Phase 5B 最小场景草稿工作台：加载场景、生成草稿、查看草稿、接受 / 拒绝 / 修复，并自动消费风格约束。</p>
 
   <section>
-    <h2>1. 载入 Scene</h2>
+    <h2>1. 载入场景</h2>
     <div class="grid">
       <div>
-        <label for="projectId">Project ID</label>
+        <label for="projectId">项目 ID</label>
         <input id="projectId" placeholder="proj_xxx">
       </div>
       <div>
-        <label for="sceneId">Scene ID</label>
+        <label for="sceneId">场景 ID</label>
         <input id="sceneId" placeholder="scene_0001_001">
       </div>
       <div>
         <label for="mode">生成模式</label>
         <select id="mode">
-          <option value="outline_strict">outline_strict</option>
-          <option value="momentum">momentum</option>
+          <option value="outline_strict">严格贴纲</option>
+          <option value="momentum">推进优先</option>
         </select>
       </div>
     </div>
-    <button id="loadScene">加载 Scene</button>
-    <button id="generateDraft">生成 Draft</button>
-    <button id="exportScene">Export Scene</button>
+    <button id="loadScene">加载场景</button>
+    <button id="generateDraft">生成草稿</button>
+    <button id="exportScene">导出场景</button>
   </section>
 
   <section>
-    <h2>2. Scene 摘要</h2>
-    <pre id="sceneOutput">等待加载 scene...</pre>
+    <h2>2. 场景摘要</h2>
+    <pre id="sceneOutput">等待加载场景...</pre>
   </section>
 
   <section>
-    <h2>3. Draft Manifest</h2>
+    <h2>3. 草稿清单</h2>
     <div id="manifestMeta" class="meta">尚未加载。</div>
     <div id="draftList" class="draft-list"></div>
   </section>
 
   <section>
-    <h2>4. Draft 详情</h2>
-    <div id="draftMeta" class="meta">尚未选择 draft。</div>
-    <button id="acceptDraft">Accept</button>
-    <button id="rejectDraft">Reject</button>
-    <button id="repairDraft" style="display:none">Repair Draft</button>
-    <pre id="draftOutput">等待选择 draft...</pre>
+    <h2>4. 草稿详情</h2>
+    <div id="draftMeta" class="meta">尚未选择草稿。</div>
+    <button id="acceptDraft">接受草稿</button>
+    <button id="rejectDraft">拒绝草稿</button>
+    <button id="repairDraft" style="display:none">修复草稿</button>
+    <pre id="draftOutput">等待选择草稿...</pre>
   </section>
 
   <section>
@@ -153,13 +153,57 @@
     debugOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
   }
 
+  function formatError(error) {
+    if (error && typeof error === 'object' && error.payload) {
+      const detail = error.payload.detail;
+      if (detail && typeof detail === 'object' && detail.message) {
+        return `请求失败：${detail.message}`;
+      }
+      if (typeof detail === 'string') {
+        return `请求失败：${detail}`;
+      }
+      return JSON.stringify(error.payload, null, 2);
+    }
+    const text = String(error);
+    return text.startsWith('Error: ') ? text.slice(7) : text;
+  }
+
   async function fetchJson(url, options = {}) {
     const response = await fetch(url, options);
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(JSON.stringify(payload));
+      throw { status: response.status, payload };
     }
     return payload;
+  }
+
+  function localizeDraftStatus(status) {
+    const mapping = {
+      draft: '草稿',
+      accepted: '已接受',
+      rejected: '已拒绝',
+      superseded: '已替代',
+    };
+    return mapping[status] || status;
+  }
+
+  function localizeMode(mode) {
+    const mapping = {
+      outline_strict: '严格贴纲',
+      momentum: '推进优先',
+      repair: '修复',
+    };
+    return mapping[mode] || mode;
+  }
+
+  function localizeCheckStatus(status) {
+    const mapping = {
+      clean: '通过',
+      warning: '警告',
+      blocked: '阻断',
+      error: '错误',
+    };
+    return mapping[status] || status;
   }
 
   function updateRepairButton(payload) {
@@ -172,7 +216,7 @@
   function updateDraftView(payload) {
     currentDraftId = payload.draft.draft_id;
     const reportStatus = payload.check_report ? payload.check_report.overall_status : '-';
-    draftMeta.textContent = `draft=${payload.draft.draft_id} status=${payload.draft.status} mode=${payload.draft.candidate_mode} checks=${reportStatus}`;
+    draftMeta.textContent = `草稿=${payload.draft.draft_id} 状态=${localizeDraftStatus(payload.draft.status)} 模式=${localizeMode(payload.draft.candidate_mode)} 检查=${localizeCheckStatus(reportStatus)}`;
     draftOutput.textContent = payload.draft.content_md;
     setDebug(payload);
     updateRepairButton(payload);
@@ -182,7 +226,7 @@
     currentProjectId = document.getElementById('projectId').value.trim();
     currentSceneId = document.getElementById('sceneId').value.trim();
     if (!currentProjectId || !currentSceneId) {
-      setDebug('请先输入 project_id 和 scene_id。');
+      setDebug('请先输入项目 ID 和场景 ID。');
       return;
     }
     try {
@@ -191,7 +235,7 @@
       setDebug(payload);
       await loadManifest();
     } catch (error) {
-      setDebug(String(error));
+      setDebug(formatError(error));
     }
   }
 
@@ -201,16 +245,16 @@
     }
     try {
       const payload = await fetchJson(`/api/projects/${currentProjectId}/drafts/scenes/${currentSceneId}`);
-      manifestMeta.textContent = `latest=${payload.latest_draft_id || '-'} accepted=${payload.accepted_draft_id || '-'} last_no=${payload.last_draft_no}`;
+      manifestMeta.textContent = `最新草稿=${payload.latest_draft_id || '-'} 已接受草稿=${payload.accepted_draft_id || '-'} 最新编号=${payload.last_draft_no}`;
       draftList.innerHTML = '';
       for (const item of payload.items) {
         const button = document.createElement('button');
-        button.textContent = `#${item.draft_no} ${item.status} ${item.candidate_mode} ${item.summary || ''}`;
+        button.textContent = `#${item.draft_no} ${localizeDraftStatus(item.status)} ${localizeMode(item.candidate_mode)} ${item.summary || ''}`;
         button.addEventListener('click', () => loadDraft(item.draft_id));
         draftList.appendChild(button);
       }
     } catch (error) {
-      manifestMeta.textContent = 'manifest 不可用';
+      manifestMeta.textContent = '草稿清单不可用';
       draftList.innerHTML = '';
     }
   }
@@ -221,7 +265,7 @@
       const payload = await fetchJson(`/api/projects/${currentProjectId}/drafts/${draftId}`);
       updateDraftView(payload);
     } catch (error) {
-      setDebug(String(error));
+      setDebug(formatError(error));
       updateRepairButton(null);
     }
   }
@@ -230,7 +274,7 @@
     currentProjectId = document.getElementById('projectId').value.trim();
     currentSceneId = document.getElementById('sceneId').value.trim();
     if (!currentProjectId || !currentSceneId) {
-      setDebug('请先输入 project_id 和 scene_id。');
+      setDebug('请先输入项目 ID 和场景 ID。');
       return;
     }
     try {
@@ -242,14 +286,14 @@
       updateDraftView(payload);
       await loadManifest();
     } catch (error) {
-      setDebug(String(error));
+      setDebug(formatError(error));
       updateRepairButton(null);
     }
   }
 
   async function actDraft(action) {
     if (!currentProjectId || !currentDraftId) {
-      setDebug('请先选择 draft。');
+      setDebug('请先选择草稿。');
       return;
     }
     try {
@@ -259,13 +303,13 @@
       updateDraftView(payload);
       await loadManifest();
     } catch (error) {
-      setDebug(String(error));
+      setDebug(formatError(error));
     }
   }
 
   async function repairDraft() {
     if (!currentProjectId || !currentDraftId) {
-      setDebug('请先选择 draft。');
+      setDebug('请先选择草稿。');
       return;
     }
     try {
@@ -277,7 +321,7 @@
       updateDraftView(payload);
       await loadManifest();
     } catch (error) {
-      setDebug(String(error));
+      setDebug(formatError(error));
     }
   }
 
@@ -285,7 +329,7 @@
     currentProjectId = document.getElementById('projectId').value.trim();
     currentSceneId = document.getElementById('sceneId').value.trim();
     if (!currentProjectId || !currentSceneId) {
-      setDebug('请先输入 project_id 和 scene_id。');
+      setDebug('请先输入项目 ID 和场景 ID。');
       return;
     }
     try {
@@ -296,7 +340,7 @@
       });
       setDebug(payload);
     } catch (error) {
-      setDebug(String(error));
+      setDebug(formatError(error));
     }
   }
 

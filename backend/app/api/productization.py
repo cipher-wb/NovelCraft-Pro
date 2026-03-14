@@ -83,6 +83,34 @@ def _value_error_code(message: str) -> str:
     return "invalid_request"
 
 
+def _value_error_message(message: str) -> str:
+    mapping = {
+        "Unsupported export scope.": "不支持的导出范围。",
+        "Unsupported export format.": "不支持的导出格式。",
+        "Unsupported rebuild targets.": "不支持的重建目标。",
+        "target_id is required for this export scope.": "当前导出范围必须提供 target_id。",
+        "Only create_new import mode is supported.": "当前仅支持 create_new 导入模式。",
+        "Unsupported package_version.": "不支持的 package_version。",
+        "Manifest and inventory package_id mismatch.": "manifest 与 inventory 的 package_id 不一致。",
+        "Inventory contains absolute path.": "inventory 中包含绝对路径。",
+        "Inventory contains invalid relative path.": "inventory 中包含非法相对路径。",
+        "Inventory contains machine-specific path.": "inventory 中包含机器相关路径。",
+    }
+    if message in mapping:
+        return mapping[message]
+    if message.startswith("Missing required canonical file:"):
+        return message.replace("Missing required canonical file:", "缺少必需的 canonical 文件：", 1)
+    if message.startswith("Inventory-declared file missing:"):
+        return message.replace("Inventory-declared file missing:", "inventory 声明的文件缺失：", 1)
+    if message.startswith("Hash mismatch for "):
+        return message.replace("Hash mismatch for ", "文件哈希不匹配：", 1)
+    if message.startswith("Size mismatch for "):
+        return message.replace("Size mismatch for ", "文件大小不匹配：", 1)
+    if message.startswith("Unsupported package path:"):
+        return message.replace("Unsupported package path:", "不支持的包路径：", 1)
+    return message
+
+
 def _conflict_error_code(message: str) -> str:
     mapping = {
         "Scene export requires exactly one active accepted draft.": "scene_export_requires_single_accepted",
@@ -94,6 +122,19 @@ def _conflict_error_code(message: str) -> str:
         "Target project slug already exists.": "target_slug_exists",
     }
     return mapping.get(message, "conflict")
+
+
+def _conflict_error_message(message: str) -> str:
+    mapping = {
+        "Scene export requires exactly one active accepted draft.": "场景导出要求存在且仅存在一个激活状态的已接受草稿。",
+        "Chapter export requires an assembled chapter artifact.": "章节导出要求当前存在章节组装产物。",
+        "Volume export requires an assembled volume artifact.": "卷导出要求当前存在卷组装产物。",
+        "Book export requires an assembled book artifact.": "整书导出要求当前存在整书组装产物。",
+        "Only project packages can be imported.": "仅支持导入项目包。",
+        "Target project_id already exists.": "目标 project_id 已存在。",
+        "Target project slug already exists.": "目标项目 slug 已存在。",
+    }
+    return mapping.get(message, message)
 
 
 def _build_services(settings):
@@ -204,19 +245,19 @@ def _map_error(error: Exception) -> HTTPException:
     if isinstance(error, KeyError):
         return HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=_error_detail("resource_not_found", "Project or resource not found"),
+            detail=_error_detail("resource_not_found", "项目或资源不存在"),
         )
     if isinstance(error, ConflictError):
         message = str(error)
         return HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=_error_detail(_conflict_error_code(message), message),
+            detail=_error_detail(_conflict_error_code(message), _conflict_error_message(message)),
         )
     if isinstance(error, ValueError):
         message = str(error)
         return HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_error_detail(_value_error_code(message), message),
+            detail=_error_detail(_value_error_code(message), _value_error_message(message)),
         )
     raise error
 
