@@ -11,6 +11,10 @@ def _project_root(slug: str) -> Path:
     return Path(os.environ["PROJECTS_ROOT"]) / slug
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
 def _create_ready_project(client: TestClient) -> dict[str, object]:
     project_response = client.post(
         "/api/projects",
@@ -213,3 +217,78 @@ def test_archive_backup_and_snapshots_api_are_available(client: TestClient) -> N
     assert "Import Package" in dashboard.text
     assert "Create Archive Snapshot" in dashboard.text
     assert "Create Backup" in dashboard.text
+
+
+def test_productization_endpoints_return_machine_friendly_error_codes(client: TestClient) -> None:
+    export = client.post(
+        "/api/projects/proj_missing/export",
+        json={"scope": "unsupported_scope", "target_id": "anything", "format": "json_package"},
+    )
+    assert export.status_code == 400
+    assert export.json()["detail"]["code"] == "unsupported_export_scope"
+
+    health = client.get("/api/projects/proj_missing/diagnostics/health")
+    assert health.status_code == 404
+    assert health.json()["detail"]["code"] == "resource_not_found"
+
+    imported = client.post(
+        "/api/projects/import-package",
+        json={"package_path": "examples/sample-project-package", "mode": "overwrite_existing"},
+    )
+    assert imported.status_code == 400
+    assert imported.json()["detail"]["code"] == "unsupported_import_mode"
+
+
+def test_import_conflict_returns_stable_target_slug_code(client: TestClient) -> None:
+    project = _create_ready_project(client)
+
+    exported = client.post(
+        f"/api/projects/{project['project_id']}/export",
+        json={"scope": "project", "format": "json_package"},
+    )
+    assert exported.status_code == 200
+    package_root = _project_root(project["slug"]) / exported.json()["relative_dir"]
+
+    first = client.post(
+        "/api/projects/import-package",
+        json={
+            "package_path": str(package_root),
+            "new_project_slug": f"{project['slug']}-phase11-import",
+            "mode": "create_new",
+        },
+    )
+    assert first.status_code == 200
+
+    second = client.post(
+        "/api/projects/import-package",
+        json={
+            "package_path": str(package_root),
+            "new_project_slug": f"{project['slug']}-phase11-import",
+            "mode": "create_new",
+        },
+    )
+    assert second.status_code == 409
+    assert second.json()["detail"]["code"] == "target_slug_exists"
+
+
+def test_committed_sample_project_package_is_importable_and_health_is_clean(client: TestClient) -> None:
+    sample_package = _repo_root() / "examples" / "sample-project-package"
+    imported = client.post(
+        "/api/projects/import-package",
+        json={
+            "package_path": str(sample_package),
+            "new_project_id": "proj_phase11_sample_api",
+            "new_project_slug": "phase11-sample-api",
+            "mode": "create_new",
+        },
+    )
+    assert imported.status_code == 200
+    payload = imported.json()
+    assert payload["package_version"] == "project_package_v1"
+    assert payload["project_id"] == "proj_phase11_sample_api"
+    assert payload["project_slug"] == "phase11-sample-api"
+    assert payload["post_import_health"]["overall_status"] == "clean"
+
+    health = client.get("/api/projects/proj_phase11_sample_api/diagnostics/health")
+    assert health.status_code == 200
+    assert health.json()["overall_status"] == "clean"

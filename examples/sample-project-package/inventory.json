@@ -1,0 +1,211 @@
+{
+  "package_id": "20260314T050841Z-6afb699b",
+  "package_version": "project_package_v1",
+  "created_at": "2026-03-14T05:08:41.207868Z",
+  "items": [
+    {
+      "relative_path": "canonical/bible/characters.json",
+      "file_kind": "canonical",
+      "sha256": "b35eab8a5d1acf6118af9b436ef9ef99c658ade470807a384cf6c0f19d455d4e",
+      "size_bytes": 945
+    },
+    {
+      "relative_path": "canonical/bible/power_system.json",
+      "file_kind": "canonical",
+      "sha256": "ac1574b2a698072664da6cf3aa59a4656f17de646d9339b8cef9769f765b76a5",
+      "size_bytes": 512
+    },
+    {
+      "relative_path": "canonical/bible/story_bible.json",
+      "file_kind": "canonical",
+      "sha256": "74948479e18fe61645a68efb44d6c464964f3f2af3678f5ba72d74fcbcdbb21b",
+      "size_bytes": 1590
+    },
+    {
+      "relative_path": "canonical/bible/voice_profile.json",
+      "file_kind": "canonical",
+      "sha256": "e9633e957085b87aef693681b7fecc46f35a5c7898aacb0a0a106c10a808ace7",
+      "size_bytes": 911
+    },
+    {
+      "relative_path": "canonical/bible/world.json",
+      "file_kind": "canonical",
+      "sha256": "a467f4f2de5a80a1d243ad4c1bd2cf90995d615a69e9685277b69ced09e834dc",
+      "size_bytes": 305
+    },
+    {
+      "relative_path": "canonical/plans/chapters/chapter-0001.json",
+      "file_kind": "canonical",
+      "sha256": "7b28cc19e30d743911295f6c4c687bc75630493c5811021fcd58494f44fa4a9a",
+      "size_bytes": 1131
+    },
+    {
+      "relative_path": "canonical/plans/master_outline.json",
+      "file_kind": "canonical",
+      "sha256": "493e77aa08286147ba1e651d498b4a081849c8839297fa56b4aa51e6b4abeb85",
+      "size_bytes": 747
+    },
+    {
+      "relative_path": "canonical/plans/scenes/chapter-0001-scene-001.json",
+      "file_kind": "canonical",
+      "sha256": "436944738ce99b750f54a0bf46ea5bcb4a666b61306fd29034de13d84225d22b",
+      "size_bytes": 780
+    },
+    {
+      "relative_path": "canonical/plans/scenes/chapter-0001-scene-002.json",
+      "file_kind": "canonical",
+      "sha256": "3253f063e9dae8c7568f08b41e5e7c06bd48e31a85fc1f72a7b2d64da4a5b94b",
+      "size_bytes": 783
+    },
+    {
+      "relative_path": "canonical/plans/volumes/volume-001.json",
+      "file_kind": "canonical",
+      "sha256": "4236a999475c03c81f5d6c77fee3ba9127737079e908becfd0b730744b3484e2",
+      "size_bytes": 1493
+    },
+    {
+      "relative_path": "canonical/project.json",
+      "file_kind": "canonical",
+      "sha256": "a41305a312c12e86f2c266af6d5755354a8eeb9893b6315023c083a089c6cc05",
+      "size_bytes": 382
+    },
+    {
+      "relative_path": "checks/book/checks/latest.json",
+      "file_kind": "checks",
+      "sha256": "41a867dc1468a71365db3811b8a6e281d00ab297271fa4ccf815157e759a006d",
+      "size_bytes": 659
+    },
+    {
+      "relative_path": "checks/book/continuity_checks/latest.json",
+      "file_kind": "checks",
+      "sha256": "a82c0afa09442d8f99a3be88d8253ba753fa31991ff32b49c3d01cdbd8e60017",
+      "size_bytes": 974
+    },
+    {
+      "relative_path": "checks/chapters/chapter_0001/checks/latest.json",
+      "file_kind": "checks",
+      "sha256": "1c457be63e1354cb5db75b75231081e28bd880e30ba45a1e75a595fec3316eec",
+      "size_bytes": 833
+    },
+    {
+      "relative_path": "checks/scenes/scene_0001_001/checks/draft_423f935f0bb3.json",
+      "file_kind": "checks",
+      "sha256": "356d3f165db7f2836bd481683ca756b4504d3c0e3719c43fb49df70adb5fba88",
+      "size_bytes": 1279
+    },
+    {
+      "relative_path": "checks/scenes/scene_0001_002/checks/draft_3b1d411b1a86.json",
+      "file_kind": "checks",
+      "sha256": "b29f4891ac9170241a2b2638f6a597328e0ec2db12566d3e12c73b458a01137e",
+      "size_bytes": 1279
+    },
+    {
+      "relative_path": "checks/volumes/volume_001/checks/latest.json",
+      "file_kind": "checks",
+      "sha256": "0028e29791b4284ade5b0f03dc48421561650840d797253f504576ee1c530484",
+      "size_bytes": 691
+    },
+    {
+      "relative_path": "derived/drafts/book/assembled.json",
+      "file_kind": "derived",
+      "sha256": "874d04359ee394976f1a04614f181f9a30cf1698c624c5f383f62f8086fd7a9a",
+      "size_bytes": 3426
+    },
+    {
+      "relative_path": "derived/drafts/chapters/chapter_0001/assembled.json",
+      "file_kind": "derived",
+      "sha256": "31f11e79e496f6e09dd555910ba26f98ef71feff64eba4e9c4b5d38729bd2cde",
+      "size_bytes": 3318
+    },
+    {
+      "relative_path": "derived/drafts/scenes/scene_0001_001/context-bundle-001.json",
+      "file_kind": "derived",
+      "sha256": "3141c08b31d53d123107dbf501ea8dba53a653d2406daba071faa237cbe9c372",
+      "size_bytes": 5228
+    },
+    {
+      "relative_path": "derived/drafts/scenes/scene_0001_001/draft-001.json",
+      "file_kind": "derived",
+      "sha256": "153b2d32718d24ecac362b89dfc8e1ec6f86ea9157279c9063afdaeb49c74f79",
+      "size_bytes": 2154
+    },
+    {
+      "relative_path": "derived/drafts/scenes/scene_0001_001/manifest.json",
+      "file_kind": "derived",
+      "sha256": "a8e691db8482f6d42f8ff0d59024d04d3c758044344b48e5160d809044e22728",
+      "size_bytes": 976
+    },
+    {
+      "relative_path": "derived/drafts/scenes/scene_0001_002/context-bundle-001.json",
+      "file_kind": "derived",
+      "sha256": "e678406cd0aea2b7435aecb5883b737dda19bad90b4d9cd5db7019c84d66db94",
+      "size_bytes": 5902
+    },
+    {
+      "relative_path": "derived/drafts/scenes/scene_0001_002/draft-001.json",
+      "file_kind": "derived",
+      "sha256": "a8c0c4d9987b2d1e238c4faae1b3193cf1e34ffa9731dec588664db750dfe680",
+      "size_bytes": 2298
+    },
+    {
+      "relative_path": "derived/drafts/scenes/scene_0001_002/manifest.json",
+      "file_kind": "derived",
+      "sha256": "8c244fecd42a84eb060be3558b62fc1ec26ff84c26d193883a1dc7e79855a968",
+      "size_bytes": 970
+    },
+    {
+      "relative_path": "derived/drafts/volumes/volume_001/assembled.json",
+      "file_kind": "derived",
+      "sha256": "e47af9dd9b25b0149d46026a33e0b61bda0e960a5970402797ff7e2084d89e88",
+      "size_bytes": 3237
+    },
+    {
+      "relative_path": "memory/accepted_scenes.json",
+      "file_kind": "memory",
+      "sha256": "6c9bae083261e8eca8c4707247791a094bee736391c3c22107f9cefcf7b8916c",
+      "size_bytes": 2154
+    },
+    {
+      "relative_path": "memory/book_summary.json",
+      "file_kind": "memory",
+      "sha256": "b6906e905538f90bad91474ef8701d2cf95ac22f6f024747811691f23c22406c",
+      "size_bytes": 694
+    },
+    {
+      "relative_path": "memory/chapter_summaries.json",
+      "file_kind": "memory",
+      "sha256": "c33811fe7090431f1b6489d802c28a2105437f65a1801e7f21ccab6bca5895a8",
+      "size_bytes": 1147
+    },
+    {
+      "relative_path": "memory/character_state_summaries.json",
+      "file_kind": "memory",
+      "sha256": "2516689d0f3582d2bbe44fe0f08eca7dce51ffc869dd813892a87689582ab395",
+      "size_bytes": 122
+    },
+    {
+      "relative_path": "memory/foreshadows.json",
+      "file_kind": "memory",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "size_bytes": 2
+    },
+    {
+      "relative_path": "memory/payoffs.json",
+      "file_kind": "memory",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "size_bytes": 2
+    },
+    {
+      "relative_path": "memory/timeline.json",
+      "file_kind": "memory",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "size_bytes": 2
+    },
+    {
+      "relative_path": "memory/volume_summaries.json",
+      "file_kind": "memory",
+      "sha256": "8ca3dc7083db788ff409d48b8767912bd481902ede7545241e1607201e9813e9",
+      "size_bytes": 962
+    }
+  ]
+}

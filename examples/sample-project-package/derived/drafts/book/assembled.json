@@ -1,0 +1,49 @@
+{
+  "project_id": "proj_675e52ca43ba",
+  "version": 1,
+  "status": "finalized",
+  "updated_at": "2026-03-14T05:08:41.122759Z",
+  "source_versions": {
+    "master_outline_version": 3,
+    "planned_volume_versions": {
+      "volume_001": 3
+    },
+    "finalized_volume_versions": {
+      "volume_001": 1
+    }
+  },
+  "planned_volume_order": [
+    "volume_001"
+  ],
+  "volume_order": [
+    {
+      "volume_id": "volume_001",
+      "volume_no": 1,
+      "assembled_version": 1
+    }
+  ],
+  "content_md": "# 场景1\n模式：outline_strict\n承诺：普通人意外获得修行能力，在现代城市里完成自我证明。\n章节目的：推进卷目标的第1步\n地点：未明地点\n角色：无登场角色\n连续性：无前序 accepted 摘要\n场景目标：推进卷目标的第1步\n阻碍：主角必须在现代秩序与隐秘超凡冲突之间做选择。\n转折：卷1收束并抛出下卷问题\n结果：场景1完成阶段推进\n必含：无\n正文：按提纲推进，围绕“推进卷目标的第1步”展开，先遭遇“主角必须在现代秩序与隐秘超凡冲突之间做选择。”，随后在“卷1收束并抛出下卷问题”发生变化，最终结果收束到“场景1完成阶段推进”。\n\n# 场景2\n模式：momentum\n承诺：普通人意外获得修行能力，在现代城市里完成自我证明。\n章节目的：推进卷目标的第1步\n地点：未明地点\n角色：无登场角色\n连续性：场景1：推进卷目标的第1步，遭遇主角必须在现代秩序与隐秘超凡冲突之间做选择。，在卷1收束并抛出下卷问题后走向场景1完成阶段推进。\n场景目标：推进卷目标的第1步\n阻碍：主角必须在现代秩序与隐秘超凡冲突之间做选择。\n转折：卷1收束并抛出下卷问题\n结果：场景2完成阶段推进\n必含：无\n正文：压强前推，围绕“推进卷目标的第1步”展开，先遭遇“主角必须在现代秩序与隐秘超凡冲突之间做选择。”，随后在“卷1收束并抛出下卷问题”发生变化，最终结果收束到“场景2完成阶段推进”。",
+  "summary": "第1卷：第1章：场景1：场景1：推进卷目标的第1步，遭遇主角必须在现代秩序与隐秘超凡冲突之间做选择。，在卷1收束并抛出下卷问题后走向场景1完成阶段推进。 场景2：场景2：推进卷目标的第1步，遭遇主角必须在现代秩序与隐秘超凡冲突之间做选择。，在卷1收束并抛出下卷问题后走向场景2完成阶段推进。",
+  "hook": "卷1收束并抛出下卷问题",
+  "progress_stats": {
+    "planned_volume_count": 1,
+    "finalized_volume_count": 1,
+    "completion_ratio": 1.0,
+    "chapter_count_total": 1,
+    "scene_count_total": 2,
+    "paragraph_count_total": 2,
+    "char_count_total": 558,
+    "first_finalized_volume_no": 1,
+    "last_finalized_volume_no": 1
+  },
+  "latest_check_report_path": "drafts/book/checks/latest.json",
+  "last_check_status": "clean",
+  "last_check_blocker_count": 0,
+  "last_check_warning_count": 0,
+  "latest_continuity_check_report_path": "drafts/book/continuity_checks/latest.json",
+  "last_continuity_check_status": "clean",
+  "last_continuity_check_blocker_count": 0,
+  "last_continuity_check_warning_count": 0,
+  "finalized_at": "2026-03-14T05:08:41.171089Z",
+  "finalized_from_assembly_version": 1
+}

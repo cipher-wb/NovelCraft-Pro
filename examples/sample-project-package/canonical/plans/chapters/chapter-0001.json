@@ -1,0 +1,31 @@
+{
+  "chapter_id": "chapter_0001",
+  "project_id": "proj_675e52ca43ba",
+  "volume_id": "volume_001",
+  "volume_no": 1,
+  "chapter_no": 1,
+  "title": "第1章 第1卷 普通人意外获得修行能力，在现代城市里完成自我证明。推进1",
+  "summary": "围绕 普通人意外获得修行能力，在现代城市里完成自我证明。 的章节脚手架",
+  "purpose": "推进卷目标的第1步",
+  "main_conflict": "主角必须在现代秩序与隐秘超凡冲突之间做选择。",
+  "hook": "卷1收束并抛出下卷问题",
+  "entry_state": [
+    "一个最小可导入、可导出、可归档、可备份的演示项目。｜普通人意外获得修行能力，在现代城市里完成自我证明。"
+  ],
+  "exit_state": [
+    "普通人意外获得修行能力，在现代城市里完成自我证明。"
+  ],
+  "character_ids": [],
+  "faction_ids": [],
+  "foreshadow_ids": [],
+  "payoff_ids": [],
+  "target_words": 3000,
+  "scene_ids": [
+    "scene_0001_001",
+    "scene_0001_002"
+  ],
+  "source_volume_version": 2,
+  "status": "ready",
+  "version": 3,
+  "stale_reason": null
+}

@@ -11,3 +11,13 @@ testtemp/
 
 .tmp/
 pytest-cache-files-*/
+
+# Runtime project outputs
+projects/*/exports/
+projects/*/archives/
+projects/*/backups/
+projects/*/markdown/
+
+# Local demo / release hardening scratch space
+demo-output/
+release-preflight-output/

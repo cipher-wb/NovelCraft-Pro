@@ -1,0 +1,34 @@
+{
+  "project_id": "proj_675e52ca43ba",
+  "status": "ready",
+  "version": 2,
+  "updated_at": "2026-03-14T05:08:40.784750Z",
+  "items": [
+    {
+      "character_id": "char_mc",
+      "project_id": "proj_675e52ca43ba",
+      "name": "主角",
+      "aliases": [],
+      "role": "protagonist",
+      "is_protagonist": true,
+      "archetype": "升级流主角",
+      "core_desire": "",
+      "core_fear": "",
+      "secret": "",
+      "realm_level": "",
+      "traits": [
+        "成长"
+      ],
+      "public_goal": "克制、谨慎、遇事先观察后出手的年轻主角。",
+      "private_goal": "主角必须在现代秩序与隐秘超凡冲突之间做选择。",
+      "faction_id": null,
+      "first_appearance_hint": "",
+      "relationships": [],
+      "notes": [
+        "克制、谨慎、遇事先观察后出手的年轻主角。"
+      ],
+      "status": "draft",
+      "version": 1
+    }
+  ]
+}

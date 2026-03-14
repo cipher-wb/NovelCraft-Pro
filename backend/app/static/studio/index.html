@@ -98,7 +98,7 @@
   <section>
     <h2>0.5 Project Package</h2>
     <label for="projectPackagePath">Package Path</label>
-    <input id="projectPackagePath" placeholder="F:\...\projects\<slug>\exports\project\<package_id>">
+    <input id="projectPackagePath" placeholder="examples/sample-project-package 或项目内导出目录">
     <label for="archiveLabel">Archive Label</label>
     <input id="archiveLabel" placeholder="release-candidate">
     <button id="exportProjectPackage">Export Project Package</button>
@@ -182,6 +182,53 @@
 
   function setSnapshots(payload) {
     snapshotOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  }
+
+  function formatProductizationError(error) {
+    const status = error?.status || 0;
+    const payload = error?.payload || null;
+    const detail = payload?.detail;
+    if (detail && typeof detail === 'object') {
+      return JSON.stringify({
+        status,
+        code: detail.code || 'unexpected_error',
+        message: detail.message || 'Unexpected productization error'
+      }, null, 2);
+    }
+    if (typeof detail === 'string') {
+      return JSON.stringify({
+        status,
+        code: 'unexpected_error',
+        message: detail
+      }, null, 2);
+    }
+    return JSON.stringify({
+      status,
+      code: 'unexpected_error',
+      message: String(error)
+    }, null, 2);
+  }
+
+  async function postProductizationJson(url, body) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw {status: response.status, payload};
+    }
+    return payload;
+  }
+
+  async function getProductizationJson(url) {
+    const response = await fetch(url);
+    const payload = await response.json();
+    if (!response.ok) {
+      throw {status: response.status, payload};
+    }
+    return payload;
   }
 
   function setQuestion(question) {
@@ -268,14 +315,10 @@
       return;
     }
     try {
-      const response = await fetch(`/api/projects/${targetProjectId}/diagnostics/health`);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(JSON.stringify(payload));
-      }
+      const payload = await getProductizationJson(`/api/projects/${targetProjectId}/diagnostics/health`);
       setHealth(payload);
     } catch (error) {
-      setHealth(String(error));
+      setHealth(formatProductizationError(error));
     }
   }
 
@@ -286,11 +329,11 @@
       return;
     }
     try {
-      const payload = await postJson(`/api/projects/${targetProjectId}/rebuild`, { targets });
+      const payload = await postProductizationJson(`/api/projects/${targetProjectId}/rebuild`, { targets });
       setRebuild(payload);
       await loadHealth();
     } catch (error) {
-      setRebuild(String(error));
+      setRebuild(formatProductizationError(error));
     }
   }
 
@@ -301,14 +344,14 @@
       return;
     }
     try {
-      const payload = await postJson(`/api/projects/${targetProjectId}/export`, {
+      const payload = await postProductizationJson(`/api/projects/${targetProjectId}/export`, {
         scope: 'book',
         target_id: 'book',
         format: 'markdown_package'
       });
       setRebuild(payload);
     } catch (error) {
-      setRebuild(String(error));
+      setRebuild(formatProductizationError(error));
     }
   }
 
@@ -319,14 +362,14 @@
       return;
     }
     try {
-      const payload = await postJson(`/api/projects/${targetProjectId}/export`, {
+      const payload = await postProductizationJson(`/api/projects/${targetProjectId}/export`, {
         scope: 'project',
         format: 'json_package'
       });
       setSnapshots(payload);
       document.getElementById('projectPackagePath').value = payload.relative_dir || '';
     } catch (error) {
-      setSnapshots(String(error));
+      setSnapshots(formatProductizationError(error));
     }
   }
 
@@ -337,13 +380,13 @@
       return;
     }
     try {
-      const payload = await postJson('/api/projects/import-package', {
+      const payload = await postProductizationJson('/api/projects/import-package', {
         package_path: packagePath,
         mode: 'create_new'
       });
       setSnapshots(payload);
     } catch (error) {
-      setSnapshots(String(error));
+      setSnapshots(formatProductizationError(error));
     }
   }
 
@@ -354,13 +397,13 @@
       return;
     }
     try {
-      const payload = await postJson(`/api/projects/${targetProjectId}/archive-snapshot`, {
+      const payload = await postProductizationJson(`/api/projects/${targetProjectId}/archive-snapshot`, {
         label: document.getElementById('archiveLabel').value,
         format: 'json_package'
       });
       setSnapshots(payload);
     } catch (error) {
-      setSnapshots(String(error));
+      setSnapshots(formatProductizationError(error));
     }
   }
 
@@ -371,12 +414,12 @@
       return;
     }
     try {
-      const payload = await postJson(`/api/projects/${targetProjectId}/backup`, {
+      const payload = await postProductizationJson(`/api/projects/${targetProjectId}/backup`, {
         format: 'json_package'
       });
       setSnapshots(payload);
     } catch (error) {
-      setSnapshots(String(error));
+      setSnapshots(formatProductizationError(error));
     }
   }
 
@@ -387,14 +430,10 @@
       return;
     }
     try {
-      const response = await fetch(`/api/projects/${targetProjectId}/snapshots`);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(JSON.stringify(payload));
-      }
+      const payload = await getProductizationJson(`/api/projects/${targetProjectId}/snapshots`);
       setSnapshots(payload);
     } catch (error) {
-      setSnapshots(String(error));
+      setSnapshots(formatProductizationError(error));
     }
   }
 

@@ -1,0 +1,25 @@
+{
+  "project_id": "proj_675e52ca43ba",
+  "volume_id": "volume_001",
+  "chapter_id": "chapter_0001",
+  "scene_id": "scene_0001_001",
+  "version": 3,
+  "updated_at": "2026-03-14T05:08:40.915259Z",
+  "latest_draft_id": "draft_423f935f0bb3",
+  "accepted_draft_id": "draft_423f935f0bb3",
+  "last_draft_no": 1,
+  "items": [
+    {
+      "draft_id": "draft_423f935f0bb3",
+      "draft_no": 1,
+      "status": "accepted",
+      "candidate_mode": "outline_strict",
+      "summary": "场景1：推进卷目标的第1步，遭遇主角必须在现代秩序与隐秘超凡冲突之间做选择。，在卷1收束并抛出下卷问题后走向场景1完成阶段推进。",
+      "draft_path": "drafts/scenes/scene_0001_001/draft-001.json",
+      "context_bundle_path": "drafts/scenes/scene_0001_001/context-bundle-001.json",
+      "created_at": "2026-03-14T05:08:40.868683Z",
+      "accepted_at": "2026-03-14T05:08:40.915259Z",
+      "rejected_at": null
+    }
+  ]
+}

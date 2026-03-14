@@ -51,6 +51,51 @@ router = APIRouter(tags=["productization"])
 project_router = APIRouter(prefix="/api/projects/{project_id}", tags=["productization"])
 
 
+def _error_detail(code: str, message: str) -> dict[str, str]:
+    return {"code": code, "message": message}
+
+
+def _value_error_code(message: str) -> str:
+    mapping = {
+        "Unsupported export scope.": "unsupported_export_scope",
+        "Unsupported export format.": "unsupported_export_format",
+        "Unsupported rebuild targets.": "unsupported_rebuild_targets",
+        "target_id is required for this export scope.": "missing_target_id",
+        "Only create_new import mode is supported.": "unsupported_import_mode",
+        "Unsupported package_version.": "unsupported_package_version",
+        "Manifest and inventory package_id mismatch.": "package_manifest_mismatch",
+        "Inventory contains absolute path.": "package_path_invalid",
+        "Inventory contains invalid relative path.": "package_path_invalid",
+        "Inventory contains machine-specific path.": "package_path_invalid",
+    }
+    if message in mapping:
+        return mapping[message]
+    if message.startswith("Missing required canonical file:"):
+        return "package_canonical_missing"
+    if message.startswith("Inventory-declared file missing:"):
+        return "package_inventory_missing_file"
+    if message.startswith("Hash mismatch for "):
+        return "package_hash_mismatch"
+    if message.startswith("Size mismatch for "):
+        return "package_size_mismatch"
+    if message.startswith("Unsupported package path:"):
+        return "package_path_invalid"
+    return "invalid_request"
+
+
+def _conflict_error_code(message: str) -> str:
+    mapping = {
+        "Scene export requires exactly one active accepted draft.": "scene_export_requires_single_accepted",
+        "Chapter export requires an assembled chapter artifact.": "chapter_export_unavailable",
+        "Volume export requires an assembled volume artifact.": "volume_export_unavailable",
+        "Book export requires an assembled book artifact.": "book_export_unavailable",
+        "Only project packages can be imported.": "project_package_required",
+        "Target project_id already exists.": "target_project_exists",
+        "Target project slug already exists.": "target_slug_exists",
+    }
+    return mapping.get(message, "conflict")
+
+
 def _build_services(settings):
     paths = get_app_paths(settings)
     file_repository = get_file_repository()
@@ -157,11 +202,22 @@ def _build_services(settings):
 
 def _map_error(error: Exception) -> HTTPException:
     if isinstance(error, KeyError):
-        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project or resource not found")
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=_error_detail("resource_not_found", "Project or resource not found"),
+        )
     if isinstance(error, ConflictError):
-        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error))
+        message = str(error)
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_error_detail(_conflict_error_code(message), message),
+        )
     if isinstance(error, ValueError):
-        return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+        message = str(error)
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_error_detail(_value_error_code(message), message),
+        )
     raise error
 
 

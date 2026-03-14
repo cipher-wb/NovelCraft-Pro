@@ -1,0 +1,21 @@
+{
+  "project_id": "proj_675e52ca43ba",
+  "outline_status": "ready",
+  "version": 3,
+  "updated_at": "2026-03-14T05:08:40.818375Z",
+  "source_bible_version": 2,
+  "total_volumes": 1,
+  "active_volume_id": "volume_001",
+  "volumes": [
+    {
+      "volume_id": "volume_001",
+      "volume_no": 1,
+      "title": "第1卷 普通人意外获得修行能力，在现代城市里完成自我证明。",
+      "summary": "围绕 普通人意外获得修行能力，在现代城市里完成自我证明。 的卷级脚手架",
+      "goal": "普通人意外获得修行能力，在现代城市里完成自我证明。",
+      "planned_chapters": 1,
+      "status": "ready",
+      "file_path": "plans/volumes/volume-001.json"
+    }
+  ]
+}

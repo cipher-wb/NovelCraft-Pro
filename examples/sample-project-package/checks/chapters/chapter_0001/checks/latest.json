@@ -1,0 +1,33 @@
+{
+  "report_id": "chapter_check_a979b86417e3",
+  "project_id": "proj_675e52ca43ba",
+  "volume_id": "volume_001",
+  "chapter_id": "chapter_0001",
+  "trigger": "finalize_preflight",
+  "checker_version": "deterministic_v1",
+  "created_at": "2026-03-14T05:08:41.058490Z",
+  "source_versions": {
+    "volume_version": 3,
+    "chapter_version": 3,
+    "scene_versions": {
+      "scene_0001_001": 2,
+      "scene_0001_002": 2
+    },
+    "accepted_draft_ids": {
+      "scene_0001_001": "draft_423f935f0bb3",
+      "scene_0001_002": "draft_3b1d411b1a86"
+    },
+    "assembled_version": 1
+  },
+  "overall_status": "clean",
+  "blocker_count": 0,
+  "warning_count": 0,
+  "issues": [],
+  "rule_summaries": [
+    {
+      "rule_family": "chapter_assembly",
+      "status": "clean",
+      "issue_count": 0
+    }
+  ]
+}

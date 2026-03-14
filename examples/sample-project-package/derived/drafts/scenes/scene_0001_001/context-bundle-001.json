@@ -1,0 +1,139 @@
+{
+  "context_bundle_id": "ctx_104b804b6d4b",
+  "project_id": "proj_675e52ca43ba",
+  "volume_id": "volume_001",
+  "chapter_id": "chapter_0001",
+  "scene_id": "scene_0001_001",
+  "created_at": "2026-03-14T05:08:40.867377Z",
+  "source_versions": {
+    "story_bible_version": 2,
+    "characters_version": 2,
+    "world_version": 2,
+    "power_system_version": 2,
+    "volume_version": 3,
+    "chapter_version": 3,
+    "scene_version": 2
+  },
+  "story_anchor": {
+    "title": "Phase11 Sample Project",
+    "genre": "都市异能",
+    "subgenres": [
+      "都市异能",
+      "升级流"
+    ],
+    "logline": "一个最小可导入、可导出、可归档、可备份的演示项目。｜普通人意外获得修行能力，在现代城市里完成自我证明。",
+    "premise": "一个最小可导入、可导出、可归档、可备份的演示项目。｜普通人意外获得修行能力，在现代城市里完成自我证明。",
+    "selling_points": [
+      "普通人意外获得修行能力，在现代城市里完成自我证明。",
+      "可以短暂看见灵力痕迹的感知能力。"
+    ],
+    "core_conflicts": [
+      "主角必须在现代秩序与隐秘超凡冲突之间做选择。"
+    ],
+    "story_promise": "普通人意外获得修行能力，在现代城市里完成自我证明。",
+    "narrative_constraints": [
+      "都市异能",
+      "升级流"
+    ],
+    "world_hook": "主角必须在现代秩序与隐秘超凡冲突之间做选择。",
+    "power_hook": "可以短暂看见灵力痕迹的感知能力。"
+  },
+  "volume_anchor": {
+    "volume_id": "volume_001",
+    "volume_no": 1,
+    "title": "第1卷 普通人意外获得修行能力，在现代城市里完成自我证明。",
+    "summary": "围绕 普通人意外获得修行能力，在现代城市里完成自我证明。 的卷级脚手架",
+    "goal": "普通人意外获得修行能力，在现代城市里完成自我证明。",
+    "core_conflict": "主角必须在现代秩序与隐秘超凡冲突之间做选择。",
+    "upgrade_target": "可以短暂看见灵力痕迹的感知能力。"
+  },
+  "chapter_anchor": {
+    "chapter_id": "chapter_0001",
+    "chapter_no": 1,
+    "title": "第1章 第1卷 普通人意外获得修行能力，在现代城市里完成自我证明。推进1",
+    "summary": "围绕 普通人意外获得修行能力，在现代城市里完成自我证明。 的章节脚手架",
+    "purpose": "推进卷目标的第1步",
+    "main_conflict": "主角必须在现代秩序与隐秘超凡冲突之间做选择。",
+    "hook": "卷1收束并抛出下卷问题",
+    "entry_state": [
+      "一个最小可导入、可导出、可归档、可备份的演示项目。｜普通人意外获得修行能力，在现代城市里完成自我证明。"
+    ],
+    "exit_state": [
+      "普通人意外获得修行能力，在现代城市里完成自我证明。"
+    ]
+  },
+  "scene_anchor": {
+    "scene_id": "scene_0001_001",
+    "scene_no": 1,
+    "title": "场景1",
+    "summary": "章节 1 的场景脚手架 1",
+    "scene_type": "setup",
+    "goal": "推进卷目标的第1步",
+    "obstacle": "主角必须在现代秩序与隐秘超凡冲突之间做选择。",
+    "turning_point": "卷1收束并抛出下卷问题",
+    "outcome": "场景1完成阶段推进",
+    "location_id": null,
+    "time_anchor": "",
+    "must_include": [],
+    "forbidden": [],
+    "target_words": 1500,
+    "emotional_beat": "",
+    "continuity_notes": ""
+  },
+  "character_briefs": [],
+  "faction_briefs": [],
+  "location_brief": null,
+  "power_brief": {
+    "system_name": "可以短暂看见灵力痕迹的感知能力。",
+    "core_rules": [
+      "可以短暂看见灵力痕迹的感知能力。"
+    ],
+    "upgrade_rhythm_guideline": "起势与觉醒：前10章发现异常，中段确认目标，后段完成首次正面解决。"
+  },
+  "continuity": {
+    "previous_accepted_scene_id": null,
+    "previous_accepted_scene_summary": ""
+  },
+  "style_constraints": {
+    "enabled": false,
+    "profile_name": "",
+    "global_constraints": {
+      "sentence_rhythm": {
+        "baseline": "",
+        "soft_max_sentence_chars": 0,
+        "burst_short_lines": false
+      },
+      "paragraph_rhythm": {
+        "preferred_min_sentences": 0,
+        "preferred_max_sentences": 0,
+        "soft_max_sentences": 0
+      },
+      "banned_phrases": [],
+      "narrative_habits": {
+        "narration_person": "",
+        "exposition_density": "",
+        "inner_monologue_density": "",
+        "dialogue_tag_style": ""
+      },
+      "payoff_style": {
+        "intensity": "",
+        "prefer_action_before_reaction": false,
+        "prefer_concrete_gain": false,
+        "avoid_empty_hype": false
+      }
+    },
+    "character_voice_briefs": [],
+    "warnings": []
+  },
+  "retrieved_memory": {
+    "strategy": "deterministic_v1",
+    "warnings": [
+      "volume_summaries_unavailable"
+    ],
+    "recent_scene_summaries": [],
+    "previous_chapter_summary": null,
+    "previous_volume_summary": null,
+    "character_state_briefs": [],
+    "book_summary": null
+  }
+}

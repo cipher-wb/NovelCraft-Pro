@@ -1,0 +1,40 @@
+{
+  "bible_id": "bible_proj_675e52ca43ba",
+  "project_id": "proj_675e52ca43ba",
+  "source_dossier_id": "dossier_96ad2b73b1b4",
+  "title": "Phase11 Sample Project",
+  "genre": "都市异能",
+  "subgenres": [
+    "都市异能",
+    "升级流"
+  ],
+  "target_audience": [
+    "需要快速验证完整工作流的开发者与演示用户。"
+  ],
+  "logline": "一个最小可导入、可导出、可归档、可备份的演示项目。｜普通人意外获得修行能力，在现代城市里完成自我证明。",
+  "premise": "一个最小可导入、可导出、可归档、可备份的演示项目。｜普通人意外获得修行能力，在现代城市里完成自我证明。",
+  "themes": [],
+  "selling_points": [
+    "普通人意外获得修行能力，在现代城市里完成自我证明。",
+    "可以短暂看见灵力痕迹的感知能力。",
+    "主角必须在现代秩序与隐秘超凡冲突之间做选择。"
+  ],
+  "core_conflicts": [
+    "主角必须在现代秩序与隐秘超凡冲突之间做选择。"
+  ],
+  "story_promise": "普通人意外获得修行能力，在现代城市里完成自我证明。",
+  "narrative_constraints": [
+    "都市异能",
+    "升级流"
+  ],
+  "protagonist_ids": [
+    "char_mc"
+  ],
+  "featured_faction_ids": [],
+  "featured_location_ids": [],
+  "world_hook": "主角必须在现代秩序与隐秘超凡冲突之间做选择。",
+  "power_hook": "可以短暂看见灵力痕迹的感知能力。",
+  "status": "ready",
+  "version": 2,
+  "updated_at": "2026-03-14T05:08:40.796021Z"
+}

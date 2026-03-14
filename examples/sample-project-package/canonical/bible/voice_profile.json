@@ -1,0 +1,34 @@
+{
+  "project_id": "proj_675e52ca43ba",
+  "version": 1,
+  "updated_at": "2026-03-14T05:08:40.678766Z",
+  "enabled": false,
+  "profile_name": "",
+  "global_constraints": {
+    "sentence_rhythm": {
+      "baseline": "medium_short",
+      "soft_max_sentence_chars": 40,
+      "burst_short_lines": false
+    },
+    "paragraph_rhythm": {
+      "preferred_min_sentences": 1,
+      "preferred_max_sentences": 3,
+      "soft_max_sentences": 4
+    },
+    "banned_phrases": [],
+    "narrative_habits": {
+      "narration_person": "third_limited",
+      "exposition_density": "low",
+      "inner_monologue_density": "low",
+      "dialogue_tag_style": "simple"
+    },
+    "payoff_style": {
+      "intensity": "direct",
+      "prefer_action_before_reaction": true,
+      "prefer_concrete_gain": true,
+      "avoid_empty_hype": true
+    }
+  },
+  "character_voice_profiles": [],
+  "notes": ""
+}

@@ -1,0 +1,37 @@
+{
+  "report_id": "book_continuity_a71643165d4e",
+  "project_id": "proj_675e52ca43ba",
+  "trigger": "finalize_preflight",
+  "checker_version": "deterministic_v1",
+  "created_at": "2026-03-14T05:08:41.165131Z",
+  "source_versions": {
+    "story_bible_version": 2,
+    "characters_version": 2,
+    "world_version": 2,
+    "power_system_version": 2,
+    "master_outline_version": 3,
+    "planned_volume_versions": {
+      "volume_001": 3
+    },
+    "finalized_volume_versions": {
+      "volume_001": 1
+    },
+    "book_assembled_version": 1,
+    "accepted_scenes_version": 3,
+    "chapter_summaries_version": 4,
+    "character_state_summaries_version": 3,
+    "volume_summaries_version": 2,
+    "book_summary_version": 1
+  },
+  "overall_status": "clean",
+  "blocker_count": 0,
+  "warning_count": 0,
+  "issues": [],
+  "rule_summaries": [
+    {
+      "rule_family": "book_continuity",
+      "status": "clean",
+      "issue_count": 0
+    }
+  ]
+}
