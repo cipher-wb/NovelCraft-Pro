@@ -39,6 +39,7 @@
     <button id="assembleChapter">Assemble Chapter</button>
     <button id="recheckChapter">Recheck</button>
     <button id="finalizeChapter">Finalize</button>
+    <button id="exportChapter">Export Chapter</button>
   </section>
 
   <section>
@@ -107,10 +108,30 @@
     }
   }
 
+  async function exportChapter() {
+    currentProjectId = document.getElementById("projectId").value.trim();
+    currentChapterId = document.getElementById("chapterId").value.trim();
+    if (!currentProjectId || !currentChapterId) {
+      assembledOutput.textContent = "请先输入 project_id 和 chapter_id。";
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: "chapter", target_id: currentChapterId, format: "markdown_package" }),
+      });
+      assembledOutput.textContent = JSON.stringify(payload, null, 2);
+    } catch (error) {
+      assembledOutput.textContent = String(error);
+    }
+  }
+
   document.getElementById("loadChapter").addEventListener("click", loadChapter);
   document.getElementById("assembleChapter").addEventListener("click", () => callChapterAction("assemble"));
   document.getElementById("recheckChapter").addEventListener("click", () => callChapterAction("checks/recheck"));
   document.getElementById("finalizeChapter").addEventListener("click", () => callChapterAction("finalize"));
+  document.getElementById("exportChapter").addEventListener("click", exportChapter);
 </script>
 </body>
 </html>

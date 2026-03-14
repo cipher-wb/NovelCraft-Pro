@@ -163,6 +163,33 @@ class AppPaths:
     def memory_dir(self, slug: str) -> Path:
         return self.project_root(slug) / "memory"
 
+    def exports_dir(self, slug: str) -> Path:
+        return self.project_root(slug) / "exports"
+
+    def scene_exports_root(self, slug: str) -> Path:
+        return self.exports_dir(slug) / "scene"
+
+    def chapter_exports_root(self, slug: str) -> Path:
+        return self.exports_dir(slug) / "chapter"
+
+    def volume_exports_root(self, slug: str) -> Path:
+        return self.exports_dir(slug) / "volume"
+
+    def book_exports_root(self, slug: str) -> Path:
+        return self.exports_dir(slug) / "book"
+
+    def scene_export_dir(self, slug: str, scene_id: str, export_id: str) -> Path:
+        return self.scene_exports_root(slug) / scene_id / export_id
+
+    def chapter_export_dir(self, slug: str, chapter_id: str, export_id: str) -> Path:
+        return self.chapter_exports_root(slug) / chapter_id / export_id
+
+    def volume_export_dir(self, slug: str, volume_id: str, export_id: str) -> Path:
+        return self.volume_exports_root(slug) / volume_id / export_id
+
+    def book_export_dir(self, slug: str, export_id: str) -> Path:
+        return self.book_exports_root(slug) / export_id
+
     def accepted_scenes_memory_path(self, slug: str) -> Path:
         return self.memory_dir(slug) / "accepted_scenes.json"
 

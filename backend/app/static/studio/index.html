@@ -72,12 +72,28 @@
 <body>
 <main>
   <h1>NovelCraft Pro</h1>
-  <p>当前工作台用于验证项目创建、立项顾问 mock 流程，以及当前稳定阶段的 scene draft / style / chapter / volume assembly 最小主链。</p>
+  <p>当前工作台用于串起项目创建、scene/chapter/volume/book 主链，以及 Phase 10A 的 export / rebuild / diagnostics 最小收尾链。</p>
   <p><a href="/studio/scene.html">打开 Scene Draft 页面</a></p>
   <p><a href="/studio/style.html">打开 Style 配置页面</a></p>
   <p><a href="/studio/chapter.html">打开 Chapter Assembly 页面</a></p>
   <p><a href="/studio/volume.html">打开 Volume Assembly 页面</a></p>
   <p><a href="/studio/book.html">打开 Book Assembly 页面</a></p>
+
+  <section>
+    <h2>0. Project Health</h2>
+    <label for="projectHealthId">Project ID</label>
+    <input id="projectHealthId" placeholder="proj_xxx">
+    <button id="loadHealth">Load Health</button>
+    <button id="rebuildAll">Rebuild All</button>
+    <button id="rebuildMemory">Rebuild Memory</button>
+    <button id="rebuildChapters">Rebuild Chapters</button>
+    <button id="rebuildVolumes">Rebuild Volumes</button>
+    <button id="rebuildBook">Rebuild Book</button>
+    <button id="rebuildChecks">Rebuild Checks</button>
+    <button id="exportBook">Export Book</button>
+    <pre id="healthOutput">等待 health 信息...</pre>
+    <pre id="rebuildOutput">等待 rebuild / export 结果...</pre>
+  </section>
 
   <section>
     <h2>1. 创建项目</h2>
@@ -134,9 +150,19 @@
 
   const output = document.getElementById('output');
   const questionBox = document.getElementById('questionBox');
+  const healthOutput = document.getElementById('healthOutput');
+  const rebuildOutput = document.getElementById('rebuildOutput');
 
   function setOutput(payload) {
     output.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  }
+
+  function setHealth(payload) {
+    healthOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  }
+
+  function setRebuild(payload) {
+    rebuildOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
   }
 
   function setQuestion(question) {
@@ -169,6 +195,7 @@
       target_words: Number(document.getElementById('targetWords').value)
     });
     projectId = payload.project_id;
+    document.getElementById('projectHealthId').value = projectId;
     setOutput(payload);
   });
 
@@ -214,6 +241,66 @@
     }
     setOutput(payload);
   });
+
+  async function loadHealth() {
+    const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
+    if (!targetProjectId) {
+      setHealth('请先输入 project_id。');
+      return;
+    }
+    try {
+      const response = await fetch(`/api/projects/${targetProjectId}/diagnostics/health`);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(JSON.stringify(payload));
+      }
+      setHealth(payload);
+    } catch (error) {
+      setHealth(String(error));
+    }
+  }
+
+  async function rebuild(targets = []) {
+    const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
+    if (!targetProjectId) {
+      setRebuild('请先输入 project_id。');
+      return;
+    }
+    try {
+      const payload = await postJson(`/api/projects/${targetProjectId}/rebuild`, { targets });
+      setRebuild(payload);
+      await loadHealth();
+    } catch (error) {
+      setRebuild(String(error));
+    }
+  }
+
+  async function exportBook() {
+    const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
+    if (!targetProjectId) {
+      setRebuild('请先输入 project_id。');
+      return;
+    }
+    try {
+      const payload = await postJson(`/api/projects/${targetProjectId}/export`, {
+        scope: 'book',
+        target_id: 'book',
+        format: 'markdown_package'
+      });
+      setRebuild(payload);
+    } catch (error) {
+      setRebuild(String(error));
+    }
+  }
+
+  document.getElementById('loadHealth').addEventListener('click', loadHealth);
+  document.getElementById('rebuildAll').addEventListener('click', () => rebuild([]));
+  document.getElementById('rebuildMemory').addEventListener('click', () => rebuild(['memory']));
+  document.getElementById('rebuildChapters').addEventListener('click', () => rebuild(['chapters']));
+  document.getElementById('rebuildVolumes').addEventListener('click', () => rebuild(['volumes']));
+  document.getElementById('rebuildBook').addEventListener('click', () => rebuild(['book']));
+  document.getElementById('rebuildChecks').addEventListener('click', () => rebuild(['checks']));
+  document.getElementById('exportBook').addEventListener('click', exportBook);
 </script>
 </body>
 </html>

@@ -519,6 +519,109 @@ class BookSummaryMemoryDocument(DomainModel):
     finalized_volume_ids: list[str] = Field(default_factory=list)
 
 
+class ExportPackageManifest(DomainModel):
+    export_id: str
+    scope: str
+    target_id: str
+    format: str
+    created_at: datetime
+    source_status: str
+    included_files: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ExportResult(ExportPackageManifest):
+    relative_dir: str
+    relative_package_path: str
+
+
+class RebuildStepResult(DomainModel):
+    target: str
+    status: str
+    created_count: int = 0
+    updated_count: int = 0
+    skipped_count: int = 0
+    stale_count: int = 0
+    details: list[str] = Field(default_factory=list)
+
+
+class RebuildReport(DomainModel):
+    project_id: str
+    started_at: datetime
+    finished_at: datetime
+    targets: list[str] = Field(default_factory=list)
+    overall_status: str
+    steps: list[RebuildStepResult] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ProjectHealthBibleStatus(DomainModel):
+    story_bible_status: str = "missing"
+    characters_status: str = "missing"
+    world_status: str = "missing"
+    power_system_status: str = "missing"
+
+
+class ProjectHealthPlannerCounts(DomainModel):
+    volumes_ready: int = 0
+    chapters_ready: int = 0
+    scenes_ready: int = 0
+    volumes_stale: int = 0
+    chapters_stale: int = 0
+    scenes_stale: int = 0
+
+
+class ProjectHealthScenePipeline(DomainModel):
+    planned_scene_count: int = 0
+    accepted_scene_count: int = 0
+    missing_accepted_scene_count: int = 0
+    duplicate_accepted_scene_count: int = 0
+    blocked_scene_check_count: int = 0
+
+
+class ProjectHealthArtifactSummary(DomainModel):
+    assembled_count: int = 0
+    finalized_count: int = 0
+    stale_count: int = 0
+    missing_count: int = 0
+    blocked_count: int = 0
+
+
+class ProjectHealthBookArtifact(DomainModel):
+    status: str = "missing"
+    blocked: bool = False
+
+
+class ProjectHealthMemoryStatus(DomainModel):
+    accepted_scenes_exists: bool = False
+    chapter_summaries_exists: bool = False
+    character_state_summaries_exists: bool = False
+    volume_summaries_exists: bool = False
+    book_summary_exists: bool = False
+
+
+class ProjectHealthActionableItem(DomainModel):
+    severity: str
+    code: str
+    scope: str
+    target_id: str | None = None
+    summary: str
+
+
+class ProjectHealthReport(DomainModel):
+    project_id: str
+    generated_at: datetime
+    overall_status: str
+    bible: ProjectHealthBibleStatus = Field(default_factory=ProjectHealthBibleStatus)
+    planner_counts: ProjectHealthPlannerCounts = Field(default_factory=ProjectHealthPlannerCounts)
+    scene_pipeline: ProjectHealthScenePipeline = Field(default_factory=ProjectHealthScenePipeline)
+    chapter_artifacts: ProjectHealthArtifactSummary = Field(default_factory=ProjectHealthArtifactSummary)
+    volume_artifacts: ProjectHealthArtifactSummary = Field(default_factory=ProjectHealthArtifactSummary)
+    book_artifact: ProjectHealthBookArtifact = Field(default_factory=ProjectHealthBookArtifact)
+    memory: ProjectHealthMemoryStatus = Field(default_factory=ProjectHealthMemoryStatus)
+    actionable_items: list[ProjectHealthActionableItem] = Field(default_factory=list)
+
+
 class CharacterStateSnapshot(DomainModel):
     snapshot_id: str
     project_id: str

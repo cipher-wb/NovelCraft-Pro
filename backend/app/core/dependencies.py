@@ -16,10 +16,13 @@ from backend.app.services.chapter_checks_service import ChapterChecksService
 from backend.app.services.checks_service import ChecksService
 from backend.app.services.consultant_service import ConsultantService
 from backend.app.services.context_bundle_service import ContextBundleService
+from backend.app.services.export_service import ExportService
 from backend.app.services.memory_service import MemoryService
 from backend.app.services.planner_service import PlannerService
+from backend.app.services.project_health_service import ProjectHealthService
 from backend.app.services.project_service import ProjectService
 from backend.app.services.repair_service import RepairService
+from backend.app.services.rebuild_service import RebuildService
 from backend.app.services.retrieval_service import RetrievalService
 from backend.app.services.scene_draft_service import SceneDraftService
 from backend.app.services.style_service import StyleService
@@ -307,3 +310,54 @@ def get_book_assembly_service(
         book_checks_service,
         book_continuity_checks_service,
     )
+
+
+def get_export_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    planner_service: PlannerService,
+) -> ExportService:
+    return ExportService(paths, file_repository, sqlite_repository, planner_service)
+
+
+def get_rebuild_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    bible_service: BibleService,
+    planner_service: PlannerService,
+    checks_service: ChecksService,
+    chapter_checks_service: ChapterChecksService,
+    volume_checks_service: VolumeChecksService,
+    book_checks_service: BookChecksService,
+    book_continuity_checks_service: BookContinuityChecksService,
+    chapter_assembly_service: ChapterAssemblyService,
+    volume_assembly_service: VolumeAssemblyService,
+    book_assembly_service: BookAssemblyService,
+) -> RebuildService:
+    return RebuildService(
+        paths,
+        file_repository,
+        sqlite_repository,
+        bible_service,
+        planner_service,
+        checks_service,
+        chapter_checks_service,
+        volume_checks_service,
+        book_checks_service,
+        book_continuity_checks_service,
+        chapter_assembly_service,
+        volume_assembly_service,
+        book_assembly_service,
+    )
+
+
+def get_project_health_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    bible_service: BibleService,
+    planner_service: PlannerService,
+) -> ProjectHealthService:
+    return ProjectHealthService(paths, file_repository, sqlite_repository, bible_service, planner_service)

@@ -38,6 +38,7 @@
     <button id="recheckBook">Recheck</button>
     <button id="recheckContinuity">Recheck Continuity</button>
     <button id="finalizeBook">Finalize</button>
+    <button id="exportBook">Export Book</button>
   </section>
 
   <section>
@@ -119,11 +120,30 @@
     }
   }
 
+  async function exportBook() {
+    currentProjectId = document.getElementById("projectId").value.trim();
+    if (!currentProjectId) {
+      assembledOutput.textContent = "请先输入 project_id。";
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: "book", target_id: "book", format: "markdown_package" }),
+      });
+      assembledOutput.textContent = JSON.stringify(payload, null, 2);
+    } catch (error) {
+      assembledOutput.textContent = String(error);
+    }
+  }
+
   document.getElementById("loadBook").addEventListener("click", loadBook);
   document.getElementById("assembleBook").addEventListener("click", () => callBookAction("assemble"));
   document.getElementById("recheckBook").addEventListener("click", () => callBookAction("checks/recheck"));
   document.getElementById("recheckContinuity").addEventListener("click", () => callBookAction("continuity-checks/recheck"));
   document.getElementById("finalizeBook").addEventListener("click", () => callBookAction("finalize"));
+  document.getElementById("exportBook").addEventListener("click", exportBook);
 </script>
 </body>
 </html>

@@ -108,6 +108,7 @@
     </div>
     <button id="loadScene">加载 Scene</button>
     <button id="generateDraft">生成 Draft</button>
+    <button id="exportScene">Export Scene</button>
   </section>
 
   <section>
@@ -280,8 +281,28 @@
     }
   }
 
+  async function exportScene() {
+    currentProjectId = document.getElementById('projectId').value.trim();
+    currentSceneId = document.getElementById('sceneId').value.trim();
+    if (!currentProjectId || !currentSceneId) {
+      setDebug('请先输入 project_id 和 scene_id。');
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: 'scene', target_id: currentSceneId, format: 'markdown_package' })
+      });
+      setDebug(payload);
+    } catch (error) {
+      setDebug(String(error));
+    }
+  }
+
   document.getElementById('loadScene').addEventListener('click', loadScene);
   document.getElementById('generateDraft').addEventListener('click', generateDraft);
+  document.getElementById('exportScene').addEventListener('click', exportScene);
   document.getElementById('acceptDraft').addEventListener('click', () => actDraft('accept'));
   document.getElementById('rejectDraft').addEventListener('click', () => actDraft('reject'));
   document.getElementById('repairDraft').addEventListener('click', repairDraft);

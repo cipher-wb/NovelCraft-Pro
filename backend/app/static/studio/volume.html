@@ -39,6 +39,7 @@
     <button id="assembleVolume">Assemble Volume</button>
     <button id="recheckVolume">Recheck</button>
     <button id="finalizeVolume">Finalize</button>
+    <button id="exportVolume">Export Volume</button>
   </section>
 
   <section>
@@ -107,10 +108,30 @@
     }
   }
 
+  async function exportVolume() {
+    currentProjectId = document.getElementById("projectId").value.trim();
+    currentVolumeId = document.getElementById("volumeId").value.trim();
+    if (!currentProjectId || !currentVolumeId) {
+      assembledOutput.textContent = "请先输入 project_id 和 volume_id。";
+      return;
+    }
+    try {
+      const payload = await fetchJson(`/api/projects/${currentProjectId}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: "volume", target_id: currentVolumeId, format: "markdown_package" }),
+      });
+      assembledOutput.textContent = JSON.stringify(payload, null, 2);
+    } catch (error) {
+      assembledOutput.textContent = String(error);
+    }
+  }
+
   document.getElementById("loadVolume").addEventListener("click", loadVolume);
   document.getElementById("assembleVolume").addEventListener("click", () => callVolumeAction("assemble"));
   document.getElementById("recheckVolume").addEventListener("click", () => callVolumeAction("checks/recheck"));
   document.getElementById("finalizeVolume").addEventListener("click", () => callVolumeAction("finalize"));
+  document.getElementById("exportVolume").addEventListener("click", exportVolume);
 </script>
 </body>
 </html>
