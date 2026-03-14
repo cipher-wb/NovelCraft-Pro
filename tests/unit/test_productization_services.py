@@ -21,7 +21,9 @@ def _build_services(service_container):
     from backend.app.services.checks_service import ChecksService
     from backend.app.services.context_bundle_service import ContextBundleService
     from backend.app.services.export_service import ExportService
+    from backend.app.services.import_service import ImportService
     from backend.app.services.memory_service import MemoryService
+    from backend.app.services.project_snapshot_service import ProjectSnapshotService
     from backend.app.services.project_health_service import ProjectHealthService
     from backend.app.services.rebuild_service import RebuildService
     from backend.app.services.retrieval_service import RetrievalService
@@ -129,12 +131,28 @@ def _build_services(service_container):
         bible_service,
         planner_service,
     )
+    import_service = ImportService(
+        paths,
+        file_repository,
+        sqlite_repository,
+        bible_service,
+        planner_service,
+        health_service,
+    )
+    snapshot_service = ProjectSnapshotService(
+        paths,
+        file_repository,
+        sqlite_repository,
+        export_service,
+    )
     return {
         "draft_service": draft_service,
         "chapter_service": chapter_service,
         "volume_service": volume_service,
         "book_service": book_service,
         "export_service": export_service,
+        "import_service": import_service,
+        "snapshot_service": snapshot_service,
         "rebuild_service": rebuild_service,
         "health_service": health_service,
     }
@@ -270,6 +288,32 @@ def test_export_service_generates_unique_package_dirs_and_fixed_manifest(service
     assert "artifacts/assembled.json" in book_manifest["included_files"]
 
 
+def test_project_export_package_has_supported_version_sorted_inventory_and_excludes_exports_history(service_container) -> None:
+    seed = _seed_multi_volume_project(service_container, volume_count=1, chapters_per_volume=1)
+    services = _build_services(service_container)
+    _accept_all_scenes(seed, services)
+    _finalize_all(seed, services)
+
+    project_id = seed["manifest"].project_id
+    slug = seed["manifest"].slug
+    exports_history_dir = service_container["paths"].exports_dir(slug) / "legacy"
+    exports_history_dir.mkdir(parents=True, exist_ok=True)
+    (exports_history_dir / "old.txt").write_text("legacy", encoding="utf-8")
+
+    result = services["export_service"].export(project_id, scope="project", target_id=None, format="json_package")
+    package_root = _project_root(seed) / result.relative_dir
+    manifest_payload = json.loads((package_root / "manifest.json").read_text(encoding="utf-8"))
+    inventory_payload = json.loads((package_root / "inventory.json").read_text(encoding="utf-8"))
+
+    assert manifest_payload["scope"] == "project"
+    assert manifest_payload["package_version"] == "project_package_v1"
+    assert inventory_payload["package_version"] == "project_package_v1"
+    relative_paths = [item["relative_path"] for item in inventory_payload["items"]]
+    assert relative_paths == sorted(relative_paths)
+    assert all(not path.startswith("exports/") for path in relative_paths)
+    assert "inventory.json" in manifest_payload["included_files"]
+
+
 def test_rebuild_service_is_idempotent_and_only_recreates_missing_layers(service_container) -> None:
     seed = _seed_multi_volume_project(service_container, volume_count=1, chapters_per_volume=1)
     services = _build_services(service_container)
@@ -331,3 +375,61 @@ def test_project_health_service_is_read_only_and_uses_machine_codes(service_cont
     assert health.overall_status in {"warning", "blocked"}
     assert all(item.code for item in health.actionable_items)
     assert any(item.code in {"chapter_artifact_stale", "volume_artifact_stale", "book_artifact_stale", "missing_accepted_scene"} for item in health.actionable_items)
+
+
+def test_import_service_restores_project_package_as_new_project_only(service_container) -> None:
+    seed = _seed_multi_volume_project(service_container, volume_count=1, chapters_per_volume=1)
+    services = _build_services(service_container)
+    _accept_all_scenes(seed, services)
+    _finalize_all(seed, services)
+
+    export_result = services["export_service"].export(
+        seed["manifest"].project_id,
+        scope="project",
+        target_id=None,
+        format="markdown_package",
+    )
+    package_path = str(_project_root(seed) / export_result.relative_dir)
+
+    import_report = services["import_service"].import_package(
+        package_path,
+        new_project_slug=f"{seed['manifest'].slug}-imported",
+    )
+    restored_root = service_container["paths"].project_root(import_report.project_slug)
+
+    assert import_report.mode == "create_new"
+    assert import_report.post_import_health.project_id == import_report.project_id
+    assert (restored_root / "bible" / "story_bible.json").exists()
+    assert not (restored_root / "archives").exists()
+    assert not (restored_root / "backups").exists()
+
+    with pytest.raises(Exception):
+        services["import_service"].import_package(
+            package_path,
+            new_project_id=seed["manifest"].project_id,
+            new_project_slug=seed["manifest"].slug,
+        )
+
+
+def test_snapshot_service_creates_archive_and_backup_and_lists_desc(service_container) -> None:
+    seed = _seed_multi_volume_project(service_container, volume_count=1, chapters_per_volume=1)
+    services = _build_services(service_container)
+    _accept_all_scenes(seed, services)
+    _finalize_all(seed, services)
+
+    archive = services["snapshot_service"].create_archive_snapshot(
+        seed["manifest"].project_id,
+        label="milestone-a",
+    )
+    backup = services["snapshot_service"].create_backup(seed["manifest"].project_id)
+    snapshots = services["snapshot_service"].list_snapshots(seed["manifest"].project_id)
+
+    assert archive.snapshot_type == "archive"
+    assert archive.label == "milestone-a"
+    assert backup.snapshot_type == "backup"
+    assert backup.label == ""
+    assert snapshots
+    assert [item.created_at for item in snapshots] == sorted(
+        [item.created_at for item in snapshots],
+        reverse=True,
+    )

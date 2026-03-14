@@ -15,10 +15,12 @@ from backend.app.core.dependencies import (
     get_context_bundle_service,
     get_export_service,
     get_file_repository,
+    get_import_service,
     get_llm_gateway,
     get_memory_service,
     get_planner_service,
     get_project_health_service,
+    get_project_snapshot_service,
     get_rebuild_service,
     get_retrieval_service,
     get_scene_draft_service,
@@ -28,11 +30,25 @@ from backend.app.core.dependencies import (
     get_volume_assembly_service,
     get_volume_checks_service,
 )
-from backend.app.domain.models.writing import ExportResult, ProjectHealthReport, RebuildReport
-from backend.app.schemas.productization import ExportProjectRequest, RebuildProjectRequest
+from backend.app.domain.models.writing import (
+    ExportResult,
+    ImportReport,
+    ProjectHealthReport,
+    RebuildReport,
+    SnapshotListResponse,
+    SnapshotResult,
+)
+from backend.app.schemas.productization import (
+    ArchiveSnapshotRequest,
+    BackupProjectRequest,
+    ExportProjectRequest,
+    ImportProjectPackageRequest,
+    RebuildProjectRequest,
+)
 from backend.app.services.exceptions import ConflictError
 
-router = APIRouter(prefix="/api/projects/{project_id}", tags=["productization"])
+router = APIRouter(tags=["productization"])
+project_router = APIRouter(prefix="/api/projects/{project_id}", tags=["productization"])
 
 
 def _build_services(settings):
@@ -122,7 +138,21 @@ def _build_services(settings):
         book_service,
     )
     health_service = get_project_health_service(paths, file_repository, sqlite_repository, bible_service, planner_service)
-    return export_service, rebuild_service, health_service
+    import_service = get_import_service(
+        paths,
+        file_repository,
+        sqlite_repository,
+        bible_service,
+        planner_service,
+        health_service,
+    )
+    snapshot_service = get_project_snapshot_service(
+        paths,
+        file_repository,
+        sqlite_repository,
+        export_service,
+    )
+    return export_service, rebuild_service, health_service, import_service, snapshot_service
 
 
 def _map_error(error: Exception) -> HTTPException:
@@ -135,26 +165,26 @@ def _map_error(error: Exception) -> HTTPException:
     raise error
 
 
-@router.post("/export", response_model=ExportResult)
+@project_router.post("/export", response_model=ExportResult)
 def export_project_artifact(
     project_id: str,
     request: ExportProjectRequest = Body(...),
     settings=Depends(get_app_settings),
 ) -> ExportResult:
-    export_service, _, _ = _build_services(settings)
+    export_service, _, _, _, _ = _build_services(settings)
     try:
         return export_service.export(project_id, request.scope, request.target_id, request.format)
     except Exception as error:
         raise _map_error(error) from error
 
 
-@router.post("/rebuild", response_model=RebuildReport)
+@project_router.post("/rebuild", response_model=RebuildReport)
 def rebuild_project(
     project_id: str,
     request: RebuildProjectRequest | None = Body(default=None),
     settings=Depends(get_app_settings),
 ) -> RebuildReport:
-    _, rebuild_service, _ = _build_services(settings)
+    _, rebuild_service, _, _, _ = _build_services(settings)
     try:
         request = request or RebuildProjectRequest()
         return rebuild_service.rebuild(project_id, request.targets)
@@ -162,10 +192,65 @@ def rebuild_project(
         raise _map_error(error) from error
 
 
-@router.get("/diagnostics/health", response_model=ProjectHealthReport)
+@project_router.get("/diagnostics/health", response_model=ProjectHealthReport)
 def get_project_health(project_id: str, settings=Depends(get_app_settings)) -> ProjectHealthReport:
-    _, _, health_service = _build_services(settings)
+    _, _, health_service, _, _ = _build_services(settings)
     try:
         return health_service.build_report(project_id)
     except Exception as error:
         raise _map_error(error) from error
+
+
+@router.post("/api/projects/import-package", response_model=ImportReport)
+def import_project_package(
+    request: ImportProjectPackageRequest = Body(...),
+    settings=Depends(get_app_settings),
+) -> ImportReport:
+    _, _, _, import_service, _ = _build_services(settings)
+    try:
+        return import_service.import_package(
+            request.package_path,
+            new_project_id=request.new_project_id,
+            new_project_slug=request.new_project_slug,
+            mode=request.mode,
+        )
+    except Exception as error:
+        raise _map_error(error) from error
+
+
+@project_router.post("/archive-snapshot", response_model=SnapshotResult)
+def create_archive_snapshot(
+    project_id: str,
+    request: ArchiveSnapshotRequest = Body(default=ArchiveSnapshotRequest()),
+    settings=Depends(get_app_settings),
+) -> SnapshotResult:
+    _, _, _, _, snapshot_service = _build_services(settings)
+    try:
+        return snapshot_service.create_archive_snapshot(project_id, label=request.label, format=request.format)
+    except Exception as error:
+        raise _map_error(error) from error
+
+
+@project_router.post("/backup", response_model=SnapshotResult)
+def create_backup(
+    project_id: str,
+    request: BackupProjectRequest = Body(default=BackupProjectRequest()),
+    settings=Depends(get_app_settings),
+) -> SnapshotResult:
+    _, _, _, _, snapshot_service = _build_services(settings)
+    try:
+        return snapshot_service.create_backup(project_id, format=request.format)
+    except Exception as error:
+        raise _map_error(error) from error
+
+
+@project_router.get("/snapshots", response_model=SnapshotListResponse)
+def list_snapshots(project_id: str, settings=Depends(get_app_settings)) -> SnapshotListResponse:
+    _, _, _, _, snapshot_service = _build_services(settings)
+    try:
+        return SnapshotListResponse(items=snapshot_service.list_snapshots(project_id))
+    except Exception as error:
+        raise _map_error(error) from error
+
+
+router.include_router(project_router)

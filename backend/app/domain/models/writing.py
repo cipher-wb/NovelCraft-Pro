@@ -521,10 +521,12 @@ class BookSummaryMemoryDocument(DomainModel):
 
 class ExportPackageManifest(DomainModel):
     export_id: str
+    package_id: str | None = None
     scope: str
     target_id: str
     format: str
     created_at: datetime
+    package_version: str | None = None
     source_status: str
     included_files: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -533,6 +535,20 @@ class ExportPackageManifest(DomainModel):
 class ExportResult(ExportPackageManifest):
     relative_dir: str
     relative_package_path: str
+
+
+class ProjectPackageInventoryItem(DomainModel):
+    relative_path: str
+    file_kind: str
+    sha256: str
+    size_bytes: int
+
+
+class ProjectPackageInventory(DomainModel):
+    package_id: str
+    package_version: str
+    created_at: datetime
+    items: list[ProjectPackageInventoryItem] = Field(default_factory=list)
 
 
 class RebuildStepResult(DomainModel):
@@ -620,6 +636,47 @@ class ProjectHealthReport(DomainModel):
     book_artifact: ProjectHealthBookArtifact = Field(default_factory=ProjectHealthBookArtifact)
     memory: ProjectHealthMemoryStatus = Field(default_factory=ProjectHealthMemoryStatus)
     actionable_items: list[ProjectHealthActionableItem] = Field(default_factory=list)
+
+
+class ImportReport(DomainModel):
+    package_id: str
+    package_version: str
+    project_id: str
+    project_slug: str
+    mode: str
+    imported_at: datetime
+    restored_file_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
+    post_import_health: ProjectHealthReport
+
+
+class SnapshotResult(DomainModel):
+    snapshot_id: str
+    snapshot_type: str
+    created_at: datetime
+    label: str = ""
+    project_id: str
+    project_slug: str
+    package_id: str
+    package_version: str
+    format: str
+    relative_dir: str
+    relative_package_path: str
+    warnings: list[str] = Field(default_factory=list)
+
+
+class SnapshotListItem(DomainModel):
+    snapshot_id: str
+    snapshot_type: str
+    created_at: datetime
+    label: str = ""
+    project_id: str
+    project_slug: str
+    relative_dir: str
+
+
+class SnapshotListResponse(DomainModel):
+    items: list[SnapshotListItem] = Field(default_factory=list)
 
 
 class CharacterStateSnapshot(DomainModel):

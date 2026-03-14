@@ -124,6 +124,36 @@ def test_export_api_supports_scene_chapter_volume_and_book_packages(client: Test
         assert "included_files" in manifest
 
 
+def test_project_package_export_and_import_api_are_available(client: TestClient) -> None:
+    project = _create_ready_project(client)
+
+    export_response = client.post(
+        f"/api/projects/{project['project_id']}/export",
+        json={"scope": "project", "format": "json_package"},
+    )
+    assert export_response.status_code == 200
+    export_payload = export_response.json()
+    package_root = _project_root(project["slug"]) / export_payload["relative_dir"]
+    manifest = json.loads((package_root / "manifest.json").read_text(encoding="utf-8"))
+    inventory = json.loads((package_root / "inventory.json").read_text(encoding="utf-8"))
+    assert manifest["scope"] == "project"
+    assert manifest["package_version"] == "project_package_v1"
+    assert inventory["package_version"] == "project_package_v1"
+
+    imported = client.post(
+        "/api/projects/import-package",
+        json={
+            "package_path": str(package_root),
+            "new_project_slug": f"{project['slug']}-imported",
+            "mode": "create_new",
+        },
+    )
+    assert imported.status_code == 200
+    imported_payload = imported.json()
+    assert imported_payload["mode"] == "create_new"
+    assert imported_payload["post_import_health"]["project_id"] == imported_payload["project_id"]
+
+
 def test_rebuild_and_health_api_are_available_and_dashboard_links_exist(client: TestClient) -> None:
     project = _create_ready_project(client)
     root = _project_root(project["slug"])
@@ -153,3 +183,33 @@ def test_rebuild_and_health_api_are_available_and_dashboard_links_exist(client: 
     assert "Export Chapter" in chapter_page.text
     assert "Export Volume" in volume_page.text
     assert "Export Book" in book_page.text
+
+
+def test_archive_backup_and_snapshots_api_are_available(client: TestClient) -> None:
+    project = _create_ready_project(client)
+
+    archive = client.post(
+        f"/api/projects/{project['project_id']}/archive-snapshot",
+        json={"label": "release-candidate"},
+    )
+    assert archive.status_code == 200
+    archive_payload = archive.json()
+    assert archive_payload["snapshot_type"] == "archive"
+    assert archive_payload["label"] == "release-candidate"
+
+    backup = client.post(f"/api/projects/{project['project_id']}/backup", json={})
+    assert backup.status_code == 200
+    backup_payload = backup.json()
+    assert backup_payload["snapshot_type"] == "backup"
+
+    snapshots = client.get(f"/api/projects/{project['project_id']}/snapshots")
+    assert snapshots.status_code == 200
+    items = snapshots.json()["items"]
+    assert items
+    assert {item["snapshot_type"] for item in items}.issuperset({"archive", "backup"})
+
+    dashboard = client.get("/studio")
+    assert dashboard.status_code == 200
+    assert "Import Package" in dashboard.text
+    assert "Create Archive Snapshot" in dashboard.text
+    assert "Create Backup" in dashboard.text

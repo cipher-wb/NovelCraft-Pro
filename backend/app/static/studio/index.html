@@ -72,7 +72,7 @@
 <body>
 <main>
   <h1>NovelCraft Pro</h1>
-  <p>当前工作台用于串起项目创建、scene/chapter/volume/book 主链，以及 Phase 10A 的 export / rebuild / diagnostics 最小收尾链。</p>
+  <p>当前工作台用于串起项目创建、scene/chapter/volume/book 主链，以及 Phase 10B 的 export / import / archive / backup / rebuild / diagnostics 最小收尾链。</p>
   <p><a href="/studio/scene.html">打开 Scene Draft 页面</a></p>
   <p><a href="/studio/style.html">打开 Style 配置页面</a></p>
   <p><a href="/studio/chapter.html">打开 Chapter Assembly 页面</a></p>
@@ -93,6 +93,20 @@
     <button id="exportBook">Export Book</button>
     <pre id="healthOutput">等待 health 信息...</pre>
     <pre id="rebuildOutput">等待 rebuild / export 结果...</pre>
+  </section>
+
+  <section>
+    <h2>0.5 Project Package</h2>
+    <label for="projectPackagePath">Package Path</label>
+    <input id="projectPackagePath" placeholder="F:\...\projects\<slug>\exports\project\<package_id>">
+    <label for="archiveLabel">Archive Label</label>
+    <input id="archiveLabel" placeholder="release-candidate">
+    <button id="exportProjectPackage">Export Project Package</button>
+    <button id="importProjectPackage">Import Package</button>
+    <button id="createArchiveSnapshot">Create Archive Snapshot</button>
+    <button id="createBackup">Create Backup</button>
+    <button id="loadSnapshots">Load Snapshots</button>
+    <pre id="snapshotOutput">等待 import / archive / backup / snapshots 结果...</pre>
   </section>
 
   <section>
@@ -152,6 +166,7 @@
   const questionBox = document.getElementById('questionBox');
   const healthOutput = document.getElementById('healthOutput');
   const rebuildOutput = document.getElementById('rebuildOutput');
+  const snapshotOutput = document.getElementById('snapshotOutput');
 
   function setOutput(payload) {
     output.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
@@ -163,6 +178,10 @@
 
   function setRebuild(payload) {
     rebuildOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  }
+
+  function setSnapshots(payload) {
+    snapshotOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
   }
 
   function setQuestion(question) {
@@ -293,6 +312,92 @@
     }
   }
 
+  async function exportProjectPackage() {
+    const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
+    if (!targetProjectId) {
+      setSnapshots('请先输入 project_id。');
+      return;
+    }
+    try {
+      const payload = await postJson(`/api/projects/${targetProjectId}/export`, {
+        scope: 'project',
+        format: 'json_package'
+      });
+      setSnapshots(payload);
+      document.getElementById('projectPackagePath').value = payload.relative_dir || '';
+    } catch (error) {
+      setSnapshots(String(error));
+    }
+  }
+
+  async function importProjectPackage() {
+    const packagePath = document.getElementById('projectPackagePath').value.trim();
+    if (!packagePath) {
+      setSnapshots('请先输入 package_path。');
+      return;
+    }
+    try {
+      const payload = await postJson('/api/projects/import-package', {
+        package_path: packagePath,
+        mode: 'create_new'
+      });
+      setSnapshots(payload);
+    } catch (error) {
+      setSnapshots(String(error));
+    }
+  }
+
+  async function createArchiveSnapshot() {
+    const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
+    if (!targetProjectId) {
+      setSnapshots('请先输入 project_id。');
+      return;
+    }
+    try {
+      const payload = await postJson(`/api/projects/${targetProjectId}/archive-snapshot`, {
+        label: document.getElementById('archiveLabel').value,
+        format: 'json_package'
+      });
+      setSnapshots(payload);
+    } catch (error) {
+      setSnapshots(String(error));
+    }
+  }
+
+  async function createBackup() {
+    const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
+    if (!targetProjectId) {
+      setSnapshots('请先输入 project_id。');
+      return;
+    }
+    try {
+      const payload = await postJson(`/api/projects/${targetProjectId}/backup`, {
+        format: 'json_package'
+      });
+      setSnapshots(payload);
+    } catch (error) {
+      setSnapshots(String(error));
+    }
+  }
+
+  async function loadSnapshots() {
+    const targetProjectId = document.getElementById('projectHealthId').value.trim() || projectId;
+    if (!targetProjectId) {
+      setSnapshots('请先输入 project_id。');
+      return;
+    }
+    try {
+      const response = await fetch(`/api/projects/${targetProjectId}/snapshots`);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(JSON.stringify(payload));
+      }
+      setSnapshots(payload);
+    } catch (error) {
+      setSnapshots(String(error));
+    }
+  }
+
   document.getElementById('loadHealth').addEventListener('click', loadHealth);
   document.getElementById('rebuildAll').addEventListener('click', () => rebuild([]));
   document.getElementById('rebuildMemory').addEventListener('click', () => rebuild(['memory']));
@@ -301,6 +406,11 @@
   document.getElementById('rebuildBook').addEventListener('click', () => rebuild(['book']));
   document.getElementById('rebuildChecks').addEventListener('click', () => rebuild(['checks']));
   document.getElementById('exportBook').addEventListener('click', exportBook);
+  document.getElementById('exportProjectPackage').addEventListener('click', exportProjectPackage);
+  document.getElementById('importProjectPackage').addEventListener('click', importProjectPackage);
+  document.getElementById('createArchiveSnapshot').addEventListener('click', createArchiveSnapshot);
+  document.getElementById('createBackup').addEventListener('click', createBackup);
+  document.getElementById('loadSnapshots').addEventListener('click', loadSnapshots);
 </script>
 </body>
 </html>

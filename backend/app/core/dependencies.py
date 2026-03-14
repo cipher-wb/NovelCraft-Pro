@@ -17,9 +17,11 @@ from backend.app.services.checks_service import ChecksService
 from backend.app.services.consultant_service import ConsultantService
 from backend.app.services.context_bundle_service import ContextBundleService
 from backend.app.services.export_service import ExportService
+from backend.app.services.import_service import ImportService
 from backend.app.services.memory_service import MemoryService
 from backend.app.services.planner_service import PlannerService
 from backend.app.services.project_health_service import ProjectHealthService
+from backend.app.services.project_snapshot_service import ProjectSnapshotService
 from backend.app.services.project_service import ProjectService
 from backend.app.services.repair_service import RepairService
 from backend.app.services.rebuild_service import RebuildService
@@ -361,3 +363,23 @@ def get_project_health_service(
     planner_service: PlannerService,
 ) -> ProjectHealthService:
     return ProjectHealthService(paths, file_repository, sqlite_repository, bible_service, planner_service)
+
+
+def get_import_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    bible_service: BibleService,
+    planner_service: PlannerService,
+    project_health_service: ProjectHealthService,
+) -> ImportService:
+    return ImportService(paths, file_repository, sqlite_repository, bible_service, planner_service, project_health_service)
+
+
+def get_project_snapshot_service(
+    paths: AppPaths,
+    file_repository: FileRepository,
+    sqlite_repository: SQLiteRepository,
+    export_service: ExportService,
+) -> ProjectSnapshotService:
+    return ProjectSnapshotService(paths, file_repository, sqlite_repository, export_service)
